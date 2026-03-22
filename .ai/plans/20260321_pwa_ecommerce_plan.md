@@ -902,13 +902,13 @@ cabox/
 | **PayPal** | PayPal button payments (JS SDK, IPN webhooks) | Individual OK (Business account recommended) | [developer.paypal.com](https://developer.paypal.com) |
 | **Google Cloud** | Vision API (image analysis), Custom Search API (product images) | Individual OK (personal Gmail) | [console.cloud.google.com](https://console.cloud.google.com) |
 | **Perplexity** | AI product research — specs, descriptions, market pricing | Individual OK | [docs.perplexity.ai](https://docs.perplexity.ai) |
-| **WhatsApp** | Business Cloud API for order notifications + `wa.me` links | **Requires Meta Business Verification** (legal entity or DBA) | [business.facebook.com](https://business.facebook.com/latest/whatsapp_manager) |
+| **WhatsApp** | Business Cloud API for order notifications + `wa.me` links | Individual OK (Unverified limit: 250 conv/day) | [business.facebook.com](https://business.facebook.com/latest/whatsapp_manager) |
 | **Supabase** | File storage (product images, invoices, reference uploads) | Individual OK | [supabase.com/dashboard](https://supabase.com/dashboard) |
 | **Sentry** | Error monitoring — client + server crash reporting, Slack alerts | Individual OK (free tier) | [sentry.io](https://sentry.io) |
 | **SendGrid** | Transactional email — order confirmations, invoices, shipping | Individual OK (custom domain needed for deliverability) | [sendgrid.com](https://app.sendgrid.com) |
 
 > [!NOTE]
-> Only **WhatsApp Business Cloud API** requires Meta Business Verification (proof of legal entity). However, the `wa.me` click-to-chat links work immediately with any WhatsApp Business app (no verification needed). You can launch with click-to-chat and add Cloud API later.
+> As an **individual (Unverified Business)**, Meta allows you to send up to **250 automated order notifications** (template messages) per 24 hours using the WhatsApp Cloud API. This is usually plenty for a new store. If you exceed 250 orders/day, you must complete Meta Business Verification (requires a legal entity, DBA, or tax ID) to unlock the 1K, 10K, or 100K daily limits.
 
 ---
 
@@ -1439,7 +1439,7 @@ npx playwright test
 |------|--------|------------|
 | Perplexity API rate limits | AI research blocked | Cache results in `ProductReference`; implement retry with exponential backoff |
 | Google Vision API costs | Budget overrun | Limit image analysis to admin-triggered only; cache aggressively |
-| WhatsApp API approval | Messaging blocked | Use "click-to-chat" URL as fallback (no API needed for customer-initiated) |
+| WhatsApp API limits | 250 msgs/day isn't enough as store scales | Complete Meta Business Verification (requires tax ID or legal entity) to unlock 1K+ daily limits |
 | SINPE lacks API | No automation | Manual confirmation flow; admin marks payment as received |
 | Costa Rica shipping complexity | Inaccurate estimates | Start with flat provincial zones; refine with real carrier data later |
 | Checkout abuse / bots | Fraudulent orders, coupon scraping | Rate limiting via `@upstash/ratelimit` on all public mutation endpoints |
