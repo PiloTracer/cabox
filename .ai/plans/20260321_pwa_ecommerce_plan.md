@@ -117,10 +117,10 @@ The logo `tmp/cabox.jpeg` establishes the visual identity:
 
 | Considered | Verdict | Why |
 |------------|---------|-----|
-| **PostgreSQL (Supabase)** ✅ | **Selected** | ACID compliance for financial data (orders, invoices). JSON columns for flexible attributes. Full-text search for product catalog. Supabase provides hosted Postgres + auth + storage + real-time in one platform. |
+| **PostgreSQL** ✅ | **Selected** | ACID compliance for financial data (orders, invoices). JSON columns for flexible attributes. Full-text search for product catalog. **Dev**: Docker-local `postgres:16-alpine`. **Prod**: Supabase or self-hosted (Docker). |
 | MongoDB | Rejected | Flexible schema is tempting but weak for relational data (orders→items→products). No ACID transactions without workarounds. |
 | SQLite | Rejected | No concurrent writes; not suitable for a multi-user store. |
-| PlanetScale/MySQL | Viable | But Postgres JSON support is superior for product attributes, and Supabase bundles more. |
+| PlanetScale/MySQL | Viable | But Postgres JSON support is superior for product attributes. |
 
 | ORM | Verdict | Why |
 |-----|---------|-----|
@@ -210,7 +210,8 @@ All Docker-related files carry an environment suffix. Development files are crea
 |---------|-------|------|---------|
 | `app` | Custom (`Dockerfile.dev`) | `3000` | Next.js dev server with hot-reload (volume-mounted `src/`) |
 | `db` | `postgres:16-alpine` | `5432` | PostgreSQL database |
-| `redis` | `redis:7-alpine` | `6379` | Rate limiting |
+| `redis` | `redis:7-alpine` | `6379` | Rate limiting + job queue (§15.5) |
+| `pgbouncer` | `edoburu/pgbouncer` | `6432` | Connection pooling for Prisma (§15.1) |
 
 #### Multi-Stage Dockerfile (`Dockerfile.dev`)
 
@@ -232,12 +233,13 @@ CMD ["npm", "run", "dev"]
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 RUN npx prisma generate
 RUN npm run build
@@ -380,7 +382,13 @@ docker compose -f docker-compose.dev.yml --env-file .env.dev down
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.6.0",
     "class-variance-authority": "^0.7.0",
-    "lucide-react": "^0.460.0"
+    "lucide-react": "^0.460.0",
+    "@sendgrid/mail": "^8.1.0",
+    "@sentry/nextjs": "^8.40.0",
+    "@react-email/components": "^0.0.30",
+    "@upstash/ratelimit": "^2.0.0",
+    "@ducanh2912/next-pwa": "^5.6.0",
+    "swr": "^2.2.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
@@ -933,7 +941,7 @@ cabox/
 │   └── messages/
 │       ├── en.json                          # English translations
 │       └── es.json                          # Spanish translations
-├── .env.local                               # Local env vars (see §6)
+├── .env.dev                                 # Dev env vars (see §7)
 ├── package.json
 └── tsconfig.json
 ```
@@ -974,7 +982,7 @@ NEXT_PUBLIC_STORE_TAGLINE="Curated Fashion"     # Displayed in footer / meta
 NEXT_PUBLIC_SUPPORT_WHATSAPP="+50600000000"     # PLACEHOLDER: your WhatsApp business number
 
 # ── Database ──────────────────────────────────────
-DATABASE_URL="postgresql://cabox_user:cabox_pass@db:5432/cabox_dev?schema=public"
+DATABASE_URL="postgresql://cabox_user:cabox_pass@pgbouncer:5432/cabox_dev?schema=public&pgbouncer=true"
 POSTGRES_USER="cabox_user"
 POSTGRES_PASSWORD="cabox_pass"
 POSTGRES_DB="cabox_dev"
@@ -1092,12 +1100,12 @@ UPSTASH_REDIS_REST_TOKEN="PLACEHOLDER_..."
 
 ## 9. Key Implementation Details
 
-### 8.1 Cart Architecture
+### 9.1 Cart Architecture
 - **Storage**: Client-side via Zustand store persisted to `localStorage`.
 - **Guest checkout only** (no customer accounts needed — fashion curated store model).
 - Cart items contain snapshot data (price, name, image) to avoid stale lookups.
 
-### 8.2 Checkout Flow
+### 9.2 Checkout Flow
 ```
 Cart → Customer Info Form → Shipping Address → Payment Selection → Order Confirmation
                                     ↓
@@ -1107,7 +1115,7 @@ Cart → Customer Info Form → Shipping Address → Payment Selection → Order
 - **PayPal**: PayPal JS SDK button embedded inline.
 - **SINPE / Cash / Bank Transfer**: Display instructions + reference number; order set to `PENDING` until admin manually confirms payment.
 
-### 8.3 AI Research Pipeline (Admin)
+### 9.3 AI Research Pipeline (Admin)
 ```
 Upload Reference Image
         ↓
@@ -1123,7 +1131,7 @@ Upload Reference Image
   Admin reviews and selects → attach to Product
 ```
 
-### 8.4 Pricing Engine
+### 9.4 Pricing Engine
 ```typescript
 interface PricingInput {
   marketPrices: { source: string; price: number; currency: string }[];
@@ -1141,7 +1149,7 @@ function estimatePrice(input: PricingInput): {
 }
 ```
 
-### 8.5 Shipping Calculator
+### 9.5 Shipping Calculator
 ```typescript
 function calculateShipping(params: {
   items: { weight: number; dimensions: { l: number; w: number; h: number } }[];
@@ -1158,9 +1166,9 @@ function calculateShipping(params: {
 - Uses `max(actual_weight, volumetric_weight)` for cost.
 - Applies free shipping if order total exceeds zone's `freeAbove` threshold.
 
-### 8.6 Pricing Verification, Discounts & Promotions Engine
+### 9.6 Pricing Verification, Discounts & Promotions Engine
 
-#### 8.6.1 Price-Change Guard (Open Orders Protection)
+#### 9.6.1 Price-Change Guard (Open Orders Protection)
 
 When a product price changes, existing orders must not be affected:
 
@@ -1202,7 +1210,7 @@ async function validateCart(cartItems: CartItem[]): Promise<{
 - If product archived/out-of-stock: show warning and remove from cart.
 - At checkout, **final validation is mandatory** — order cannot proceed with stale prices.
 
-#### 8.6.2 Promotion Engine
+#### 9.6.2 Promotion Engine
 
 ```typescript
 interface PromotionResult {
@@ -1233,7 +1241,7 @@ function evaluatePromotions(params: {
 - `BUY_X_GET_Y`: cheapest qualifying item is free.
 - `FREE_SHIPPING`: overrides shipping cost to 0.
 
-#### 8.6.3 Coupon System
+#### 9.6.3 Coupon System
 
 ```typescript
 // POST /api/coupons/apply
@@ -1257,7 +1265,7 @@ async function applyCoupon(params: {
 - `maxUses` is global; `maxUsesPerCustomer` is tracked by phone number.
 - Coupon is validated at apply-time AND re-validated at checkout-time.
 
-#### 8.6.4 Social Commerce & Conversions API (CAPI)
+#### 9.6.4 Social Commerce & Conversions API (CAPI)
 
 Relying solely on client-side Meta Pixels means losing 20-30% of purchase data due to ad blockers and iOS tracking prevention.
 
@@ -1265,7 +1273,7 @@ Relying solely on client-side Meta Pixels means losing 20-30% of purchase data d
 1. **Frontend (Browser)**: Standard Meta Pixel tracks `PageView`, `ViewContent`, and `AddToCart`.
 2. **Backend (Server)**: `/api/checkout` triggers the **Meta Conversions API (CAPI)** directly from the Node.js server to log `Purchase` events. Both client and server send the same deduplication ID (e.g., `orderNumber`) so Meta merges them accurately.
 
-#### 8.6.5 XML Product Feeds (Instagram/Facebook/Google Shopping)
+#### 9.6.5 XML Product Feeds (Instagram/Facebook/Google Shopping)
 
 Store products must be discoverable on social surfaces.
 
@@ -1277,7 +1285,7 @@ Store products must be discoverable on social surfaces.
 - Includes `<g:id>`, `<g:title>`, `<g:description>`, `<g:link>`, `<g:image_link>`, `<g:price>`, `<g:availability>`.
 - **Locale handling**: Generates distinct feeds for `?locale=es` and `?locale=en`.
 
-#### 8.6.6 Price Recalculation (Admin Tool)
+#### 9.6.6 Price Recalculation (Admin Tool)
 
 ```typescript
 // POST /api/products/bulk-reprice
@@ -1300,7 +1308,7 @@ async function bulkReprice(params: {
 - All changes are logged to `PriceChangeLog` with reason "Bulk reprice".
 - `dryRun: true` returns preview without saving.
 
-#### 8.6.5 Storefront Promo Display
+#### 9.6.7 Storefront Promo Display
 
 - Active promotions with `bannerImageUrl` appear as a carousel on the home page.
 - Product cards show:
@@ -1309,7 +1317,7 @@ async function bulkReprice(params: {
   - Countdown timer if promotion ends within 48 hours.
 - Coupon input field on cart/checkout page.
 
-### 8.7 WhatsApp Integration
+### 9.7 WhatsApp Integration
 - **Customer → Store**: "Order via WhatsApp" button opens `https://wa.me/{number}?text={pre-filled message with cart summary}`.
 - **Store → Customer** (Admin): Automated messages via WhatsApp Cloud API:
   - Order confirmation
@@ -1317,14 +1325,14 @@ async function bulkReprice(params: {
   - Shipment tracking
   - Delivery confirmation
 
-### 8.7 Invoicing
+### 9.8 Invoicing
 - Admin clicks "Generate Invoice" on any order.
 - System creates `Invoice` record with line-item snapshots.
 - PDF rendered server-side using `@react-pdf/renderer`.
 - PDF stored in Supabase Storage at `invoices/{invoiceNumber}.pdf`.
 - Can be sent to customer email and/or WhatsApp.
 
-### 8.8 Reporting Dashboard
+### 9.9 Reporting Dashboard
 | Report | Description |
 |--------|-------------|
 | Sales Overview | Revenue by day/week/month, order count, avg order value |
@@ -1349,30 +1357,30 @@ Charts via `recharts` library.
 | 2 | **No file structure** | Complete file tree with every route (§5) |
 | 3 | **No API contracts** | Full endpoint table with methods and payloads (§7) |
 | 4 | **No auth strategy** | NextAuth.js v5 with admin-only credentials (§3, §5) |
-| 5 | **No env variables** | Complete `.env.local` template (§6) |
+| 5 | **No env variables** | Complete `.env.dev` template with all PLACEHOLDERs (§7) |
 | 6 | **No deployment target** | Docker-centric: `Dockerfile.dev/.prd`, `docker-compose.dev/.prd.yml`, multi-store `spawn_store.sh` (§3.11) |
 | 7 | **No order tracking** | Public order status page via `/orders/[orderNumber]` (§5) |
 | 8 | **No customer model** | `Customer` model with phone as primary ID (§4) |
-| 9 | **No cart architecture** | Zustand + localStorage, guest checkout (§8.1) |
-| 10 | **No checkout flow** | Step-by-step flow with payment branching (§8.2) |
-| 11 | **No pricing algorithm** | `estimatePrice()` function spec (§8.4) |
-| 12 | **No shipping formula** | Volumetric weight calculation + zone rates (§8.5) |
-| 13 | **No invoice PDF generation** | `@react-pdf/renderer` + Supabase storage (§8.8) |
-| 14 | **No reporting spec** | 6 report types with chart library (§8.9) |
+| 9 | **No cart architecture** | Zustand + localStorage, guest checkout (§9.1) |
+| 10 | **No checkout flow** | Step-by-step flow with payment branching (§9.2) |
+| 11 | **No pricing algorithm** | `estimatePrice()` function spec (§9.4) |
+| 12 | **No shipping formula** | Volumetric weight calculation + zone rates (§9.5) |
+| 13 | **No invoice PDF generation** | `@react-pdf/renderer` + Supabase storage (§9.8) |
+| 14 | **No reporting spec** | 6 report types with chart library (§9.9) |
 | 15 | **No product variants** | `ProductVariant` model with attributes JSON (§4) |
 | 16 | **No category hierarchy** | Self-referencing `Category` model (§4) |
 | 17 | **Brand identity not extracted** | Full color palette + typography from logo (§2) |
-| 18 | **No discount/coupon system** | `Promotion` + `Coupon` models, evaluation engine, coupon validation API (§4, §8.6) |
-| 19 | **No seasonal promotions** | Time-bound `Promotion` with auto-activate/deactivate, storefront banners + countdown (§8.6) |
-| 20 | **No price-change protection** | `PriceChangeLog` audit trail + `Order.priceSnapshot` + cart revalidation API (§8.6.1) |
-| 21 | **No bulk repricing tool** | `/api/products/bulk-reprice` with dry-run, margin/markup/competitive strategies (§8.6.6) |
+| 18 | **No discount/coupon system** | `Promotion` + `Coupon` models, evaluation engine, coupon validation API (§4, §9.6) |
+| 19 | **No seasonal promotions** | Time-bound `Promotion` with auto-activate/deactivate, storefront banners + countdown (§9.6) |
+| 20 | **No price-change protection** | `PriceChangeLog` audit trail + `Order.priceSnapshot` + cart revalidation API (§9.6.1) |
+| 21 | **No bulk repricing tool** | `/api/products/bulk-reprice` with dry-run, margin/markup/competitive strategies (§9.6.6) |
 | 22 | **Invoice PDF language unclear** | `Order.locale` field added; PDF renders in customer's locale at checkout (§3.4, §4) |
 | 23 | **WhatsApp templates not bilingual** | EN + ES versions of each template required for Meta approval (§3.4) |
 | 24 | **SEO not locale-aware** | `hreflang` tags, locale-specific OG tags, JSON-LD in customer locale (§3.4) |
 | 25 | **Admin language scope undefined** | Admin dashboard is English-only, outside `[locale]` routing (§3.4, §3.6) |
-| 26 | **No social commerce feeds** | Auto-generating XML feeds (`/api/feeds/meta`) for IG/FB/Google Shopping added (§3.8, §8.6.5) |
-| 27 | **Purchase tracking inaccurate** | Added Meta Conversions API (CAPI) server-side tracking to bypass ad blockers (§3.8, §8.6.4) |
-| 28 | **Under-utilizing WhatsApp** | Expanded to full CRM strategy (Cart Recovery, Buy via WA CTAs, conversational routing) (§8.7) |
+| 26 | **No social commerce feeds** | Auto-generating XML feeds (`/api/feeds/meta`) for IG/FB/Google Shopping added (§3.8, §9.6.5) |
+| 27 | **Purchase tracking inaccurate** | Added Meta Conversions API (CAPI) server-side tracking to bypass ad blockers (§3.8, §9.6.4) |
+| 28 | **Under-utilizing WhatsApp** | Expanded to full CRM strategy (Cart Recovery, Buy via WA CTAs, conversational routing) (§9.7) |
 | 29 | **No rate limiting** | `@upstash/ratelimit` on checkout, coupon, and AI endpoints with per-IP/per-user limits (§14.1) |
 | 30 | **No error monitoring** | `@sentry/nextjs` for client + server errors, Slack alerts for critical failures (§14.2) |
 | 31 | **No transactional email** | SendGrid + React Email templates for order/payment/shipping confirmations (§14.3) |
