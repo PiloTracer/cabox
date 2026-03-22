@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import { formatCRC, formatDate } from '@/lib/format';
+import { CreatePromotionBtn } from '@/components/admin/CreatePromotionBtn';
 
 export const metadata: Metadata = { title: 'Promociones — Cabox Admin' };
 
@@ -18,6 +19,7 @@ export default async function AdminPromotionsPage() {
     <div className="admin-page">
       <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>Promociones</h1>
+        <CreatePromotionBtn />
       </div>
 
       <div className="admin-table-wrap">
@@ -35,7 +37,7 @@ export default async function AdminPromotionsPage() {
           <tbody>
             {promotions.length === 0 ? (
               <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
-                Sin promociones. Créalas via la API POST /api/admin/promotions
+                Sin promociones. Usa el botón «+ Nueva Promoción» para crear la primera.
               </td></tr>
             ) : promotions.map((p) => {
               const active = p.isActive && new Date(p.startsAt) <= now && new Date(p.endsAt) >= now;

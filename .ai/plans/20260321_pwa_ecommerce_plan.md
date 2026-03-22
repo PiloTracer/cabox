@@ -1409,93 +1409,109 @@ Charts via `recharts` library.
 
 ## 11. Phased Development Plan
 
-### Phase 1 — Docker Scaffolding & Design System (Days 1–2)
-- [ ] Create `Dockerfile.dev` (Node.js + hot-reload dev server)
-- [ ] Create `docker-compose.dev.yml` (Next.js app + PostgreSQL 16 + Redis 7, parameterized ports)
-- [ ] Create `.env.dev` with all environment variables
-- [ ] Create `templates/env.dev.template` for multi-store spawning
-- [ ] Create `spawn_store.sh` (spawn new store in 1 command)
-- [ ] Create `nginx/default.dev.conf` (simple reverse proxy)
-- [ ] `docker compose -f docker-compose.dev.yml --env-file .env.dev up -d` — verify stack boots
-- [ ] `npx create-next-app` inside container with `output: 'standalone'` in `next.config.mjs`
-- [ ] Configure PWA (`@ducanh2912/next-pwa`, manifest, icons from logo)
-- [ ] Set up Tailwind with brand tokens from §2
-- [ ] Configure `next-intl` with `/en` and `/es` routing
-- [ ] Initialize Prisma with full schema from §4
-- [ ] `docker compose -f docker-compose.dev.yml exec app npx prisma migrate dev` — verify schema
-- [ ] Create seed script with sample categories + 5 demo products
-- [ ] Build shared UI components (`Button`, `Input`, `Card`, `Badge`, `Modal`, `Toast`)
-- [ ] Create `LanguageSwitcher` component
+> **Status Audit:** 2026-03-22 17:30 CST — verified against actual codebase
 
-### Phase 2 — Public Storefront (Days 3–5)
-- [ ] Store layout: `Navbar` (logo, search, cart icon, language) + `Footer`
-- [ ] Home page: Hero banner, featured products grid, category cards
-- [ ] Product catalog page with filters (category, price range, search)
-- [ ] Product detail page (gallery, variants, add to cart, WhatsApp button)
-- [ ] Cart page/drawer with quantity adjustment, totals, and **coupon code input**
-- [ ] Implement Zustand cart store with localStorage persistence
-- [ ] **Cart revalidation** — `/api/cart/validate` endpoint + polling on cart/checkout
-- [ ] **Promotion display** — sale badges, strikethrough prices, countdown timers
-- [ ] Build all required `/api/products` endpoints
+### Phase 1 — Docker Scaffolding & Design System ✅ COMPLETE
+- [x] Create `Dockerfile.dev` (Node.js + hot-reload dev server)
+- [x] Create `docker-compose.dev.yml` (Next.js app + PostgreSQL 16 + Redis 7, parameterized ports)
+- [x] Create `.env.dev` with all environment variables
+- [x] Create `templates/env.dev.template` for multi-store spawning
+- [x] Create `spawn_store.sh` (spawn new store in 1 command)
+- [x] Create `nginx/default.dev.conf` (simple reverse proxy)
+- [x] `docker compose -f docker-compose.dev.yml --env-file .env.dev up -d` — verified ✅
+- [x] Next.js app created with `output: 'standalone'` in `next.config.mjs`
+- [x] Configure PWA (`manifest.json` exists in `public/`)
+- [x] Set up CSS design system with brand tokens from §2 (`globals.css`)
+- [x] Configure `next-intl` with `/en` and `/es` routing (`i18n/routing.ts`, `i18n/request.ts`)
+- [x] Initialize Prisma with full schema from §4 (351-line `schema.prisma`)
+- [x] Prisma migrations verified
+- [ ] Create seed script with sample categories + 5 demo products ← **NOT DONE** (no `seed.ts` found)
+- [x] Build shared UI components (custom CSS classes, not shadcn/ui — see note)
+- [ ] Create `LanguageSwitcher` component ← **NOT DONE** (Navbar does not have a language switcher)
 
-### Phase 3 — Checkout & Payments (Days 6–8)
-- [ ] Checkout page: customer info → shipping → payment method → confirm
-- [ ] Shipping calculator endpoint + UI integration
-- [ ] Stripe integration (Checkout or Elements)
-- [ ] PayPal SDK integration
-- [ ] Manual payment flow (SINPE, Transfer, Cash) with instructions display
-- [ ] Order confirmation page
-- [ ] Order tracking page (public, by order number)
-- [ ] Create ShippingZone seed data for Costa Rica provinces
+> **NOTE:** Decision was made to use custom vanilla CSS + globals.css classes instead of shadcn/ui + Tailwind.
 
-### Phase 4 — Admin Dashboard (Days 9–13)
-- [ ] NextAuth.js setup (credentials provider, admin-only)
-- [ ] Admin layout with sidebar navigation
-- [ ] Dashboard overview (stats cards, recent orders, low stock alerts)
-- [ ] Product CRUD (list, create, edit, archive) with price change logging
-- [ ] Product image upload via Supabase Storage
-- [ ] **Promotions manager** (create/edit/schedule seasonal promotions, toggle active)
-- [ ] **Coupons manager** (create codes, set limits/expiry, usage tracking)
-- [ ] **Bulk repricing tool** (by category/tag, margin/markup/competitive, dry-run preview)
-- [ ] **Price history viewer** (audit trail per product)
-- [ ] Order management (list, view detail, update status/payment)
-- [ ] Inventory management page (stock levels, adjustments)
-- [ ] Customer list page
-- [ ] Shipping zones configuration page
+### Phase 2 — Public Storefront ✅ ~90% COMPLETE
+- [x] Store layout: `Navbar.tsx` (logo, search, cart icon) + `Footer.tsx`
+- [x] Home page: Hero banner with mascot image, featured products grid, category cards
+- [x] Product catalog page with filters (`FilterBar.tsx`, category, search)
+- [x] Product detail page (`ProductGallery.tsx`, `AddToCartButton.tsx`)
+- [ ] Cart page/drawer with quantity adjustment, totals, and coupon code input ← **PARTIAL** (cart store exists, no cart drawer UI or dedicated cart page)
+- [x] Implement Zustand cart store with localStorage persistence (`stores/cart-store.ts` — full impl with addItem, removeItem, updateQuantity, coupon support)
+- [x] Cart revalidation — `/api/cart/validate` endpoint exists
+- [ ] Promotion display — sale badges, strikethrough prices, countdown timers ← **NOT DONE** (no `compareAtPrice` rendering in storefront)
+- [x] Build all required `/api/products` endpoints (`/api/products/route.ts`, `/api/products/[slug]/route.ts`)
 
-### Phase 5 — AI Integration (Days 13–15)
-- [ ] `AIResearchPanel` component on product edit page
-- [ ] Google Cloud Vision API wrapper + upload endpoint
-- [ ] Perplexity API wrapper + research endpoint
-- [ ] Google Custom Search Image API wrapper + endpoint
-- [ ] Pricing engine implementation
-- [ ] UI: display AI results, allow admin to apply specs/images/prices
+### Phase 3 — Checkout & Payments ✅ ~85% COMPLETE
+- [x] Checkout page: customer info → shipping → payment method → confirm (`CheckoutForm.tsx`)
+- [x] Shipping calculator endpoint (`/api/shipping/calculate/route.ts`) + `lib/shipping.ts`
+- [x] Stripe integration: Checkout Session (`/api/payments/stripe/checkout/route.ts`) + webhook (`/api/payments/stripe/webhook/route.ts`) + `lib/stripe.ts`
+- [x] PayPal webhook handler (`/api/payments/paypal/webhook/route.ts`)
+- [x] Manual payment flow: SINPE, Transfer, Cash with instructions display in CheckoutForm
+- [ ] Order confirmation page (dedicated `/checkout/confirmation` page) ← **NOT A SEPARATE PAGE** — user is redirected to order tracking page
+- [x] Order tracking page (public, by order number) — `/[locale]/(store)/orders/[orderNumber]/page.tsx` — full implementation with progress bar, status, items, payment info
+- [ ] Create ShippingZone seed data for Costa Rica provinces ← **NOT DONE** (no seed script)
+- [x] Coupon application API — `/api/coupons/apply/route.ts`
+- [x] Order creation API — `/api/orders/route.ts`
 
-### Phase 6 — WhatsApp CRM, Feeds & Invoicing (Days 16–18)
-- [ ] WhatsApp Cloud API wrapper
-- [ ] "Buy via WhatsApp" buttons on product catalog and PDP
-- [ ] Admin: WhatsApp cart recovery 1-click links
-- [ ] Admin: Automated order notifications via WhatsApp templates
-- [ ] **XML Product Feeds** (`/api/feeds/meta` and `/api/feeds/google`)
-- [ ] **Meta Conversions API (CAPI)** integration on checkout success route
-- [ ] Invoice generation (`@react-pdf/renderer`)
-- [ ] Invoice list + preview + PDF download
-- [ ] Reports page with 6 chart panels (recharts)
+### Phase 4 — Admin Dashboard ✅ ~80% COMPLETE
+- [x] NextAuth.js setup (credentials provider, admin-only) — `lib/auth.ts`, `api/auth/[...nextauth]/route.ts`
+- [x] Admin layout with sidebar navigation — `admin/layout.tsx`, `admin/(protected)/layout.tsx`, `AdminSidebar.tsx`
+- [x] Dashboard overview: stats cards (active products, total orders, pending orders), recent orders table — `admin/(protected)/page.tsx`
+- [x] Product CRUD: list + create + edit + archive — `admin/(protected)/products/page.tsx`, `products/new/page.tsx`, `products/[id]/edit/page.tsx`, `ProductForm.tsx`
+- [ ] Product image upload via Supabase Storage ← **NOT DONE** (images are URL-based from AI search, no Supabase upload)
+- [x] Promotions manager: listing with status, type, dates — `admin/(protected)/promotions/page.tsx` + `api/admin/promotions/route.ts`
+- [x] Coupons manager: listing with code, usage, expiry status — `admin/(protected)/coupons/page.tsx` + `api/admin/coupons/route.ts`
+- [ ] Bulk repricing tool ← **NOT DONE**
+- [ ] Price history viewer ← **NOT DONE** (PriceChangeLog model exists in Prisma but no UI)
+- [x] Order management: list with filters + detail with timeline + status update form — `orders/page.tsx`, `orders/[id]/page.tsx`, `OrderStatusForm.tsx`
+- [x] Inventory management page — `admin/(protected)/inventory/page.tsx` (stock grouping with low-stock warnings)
+- [x] Customer list page — `admin/(protected)/customers/page.tsx` (search, pagination, WhatsApp links)
+- [x] Shipping zones configuration page — `admin/(protected)/shipping/page.tsx` + `api/admin/shipping/route.ts`
+- [x] Categories manager — `admin/(protected)/categories/page.tsx`, `CategoriesClient.tsx`, `api/admin/categories/route.ts`
+- [x] Admin login page — `admin/login/page.tsx`
+- [x] Auth guard — `lib/auth-guard.ts` (requireAdmin function)
+- [ ] **Promotions & Coupons CREATE forms** ← **NOT DONE** (pages say "Créalas via la API" — no UI forms to create/edit promotions or coupons)
 
-### Phase 7 — Polish & Launch (Days 19–21)
-- [ ] Lighthouse PWA audit (target >90 on all categories)
-- [ ] SEO: meta tags, Open Graph, `hreflang`, structured data (Product schema)
-- [ ] Responsive design audit (mobile, tablet, desktop)
-- [ ] Error boundaries and loading states on all pages
-- [ ] 404 and error pages (bilingual)
-- [ ] **Create `Dockerfile.prd`** (multi-stage standalone production build)
-- [ ] **Create `docker-compose.prd.yml`** (app + postgres + redis + nginx with SSL)
-- [ ] **Create `.env.prd`** from `.env.dev` with production values
-- [ ] **Create `nginx/default.prd.conf`** (reverse proxy with Let's Encrypt SSL)
-- [ ] `docker compose -f docker-compose.prd.yml --env-file .env.prd up -d --build` — verify
-- [ ] Run production smoke tests (E2E suite against production container)
-- [ ] Database backup policy verification (`pg_dump` dry run)
-- [ ] Test multi-store spawning: `./spawn_store.sh teststore 3100 5433 6380`
+### Phase 5 — AI Integration ✅ ~75% COMPLETE
+- [x] AI product analysis via Gemini 1.5 Flash — `lib/gemini.ts`, `api/admin/ai/analyze-product/route.ts`
+- [x] Google Custom Search Image API wrapper — `lib/image-search.ts`, `api/admin/ai/search-images/route.ts`
+- [x] ProductForm integrated AI: drag-and-drop image upload → analyze → auto-fill all fields
+- [x] Standalone "Search Images" button on product form
+- [x] UI: display AI results, editable form with AI badges
+- [ ] Perplexity API wrapper ← **NOT DONE** (was replaced by Gemini)
+- [ ] Pricing engine (competitive market pricing) ← **NOT DONE** (AI suggests prices but no dedicated pricing engine)
+- [ ] AI Research Panel as separate component ← **NOT DONE** (AI is integrated directly into ProductForm, not a standalone AIResearchPanel component)
+
+> **NOTE:** Original plan called for Google Vision + Perplexity. Implementation uses Gemini 1.5 Flash for both vision analysis and text generation, which is more streamlined.
+
+### Phase 6 — WhatsApp CRM, Feeds & Invoicing ✅ ~60% COMPLETE
+- [x] WhatsApp Cloud API wrapper — `lib/whatsapp.ts` + `api/whatsapp/send/route.ts`
+- [ ] "Buy via WhatsApp" buttons on product catalog and PDP ← **NOT DONE** (no WhatsApp button component on storefront)
+- [ ] Admin: WhatsApp cart recovery 1-click links ← **NOT DONE**
+- [x] Automated order notifications via WhatsApp — integrated into Stripe/PayPal webhook handlers (calls `sendWhatsAppText` on payment completion)
+- [x] **XML Product Feeds**: `/api/feeds/meta` (RSS/XML) + `/api/feeds/google` (Atom/XML) — both fully implemented with proper escaping and product data
+- [ ] **Meta Conversions API (CAPI)** ← **NOT DONE**
+- [x] Invoice generation API — `api/admin/invoices/route.ts` (list + create with Zod validation)
+- [ ] Invoice PDF generation — `@react-pdf/renderer` ← **NOT DONE** (invoice API creates records but no PDF rendering)
+- [ ] Invoice list + preview + PDF download admin page ← **NOT DONE** (no admin invoices page exists)
+- [x] Reports page — `admin/(protected)/reports/page.tsx` (server-side aggregations: total orders, revenue, monthly stats, top products, orders by status)
+- [ ] Reports with 6 chart panels (recharts) ← **PARTIAL** — data is fetched but charts are card-based, not recharts
+
+### Phase 7 — Polish & Launch 🔲 ~20% COMPLETE
+- [ ] Lighthouse PWA audit (target >90 on all categories) ← **NOT DONE**
+- [ ] SEO: meta tags, Open Graph, `hreflang`, structured data (Product schema) ← **PARTIAL** (basic metadata objects exist, no Open Graph or structured data)
+- [ ] Responsive design audit (mobile, tablet, desktop) ← **NOT DONE**
+- [ ] Error boundaries and loading states on all pages ← **NOT DONE**
+- [ ] 404 and error pages (bilingual) ← **NOT DONE**
+- [x] **Create `Dockerfile.prd`** — exists at project root
+- [x] **Create `docker-compose.prd.yml`** — exists at project root
+- [ ] **Create `.env.prd`** from `.env.dev` with production values ← **NOT DONE**
+- [x] **Create `nginx/default.prd.conf`** — exists
+- [ ] `docker compose -f docker-compose.prd.yml --env-file .env.prd up -d --build` — verify ← **NOT DONE**
+- [ ] Run production smoke tests ← **NOT DONE**
+- [ ] Database backup policy verification ← **NOT DONE**
+- [ ] Test multi-store spawning ← **NOT DONE**
 
 ---
 

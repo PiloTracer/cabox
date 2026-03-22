@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import { formatCRC, formatDate } from '@/lib/format';
+import { CreateCouponBtn } from '@/components/admin/CreateCouponBtn';
 
 export const metadata: Metadata = { title: 'Cupones — Cabox Admin' };
 
@@ -14,11 +15,14 @@ export default async function AdminCouponsPage() {
 
   return (
     <div className="admin-page">
-      <div className="admin-page-header">
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>Cupones</h1>
-        <p style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
-          {coupons.filter((c) => c.isActive && new Date(c.expiresAt) > now).length} cupones activos
-        </p>
+      <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>Cupones</h1>
+          <p style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
+            {coupons.filter((c) => c.isActive && new Date(c.expiresAt) > now).length} cupones activos
+          </p>
+        </div>
+        <CreateCouponBtn />
       </div>
 
       <div className="admin-table-wrap">
@@ -36,7 +40,7 @@ export default async function AdminCouponsPage() {
           <tbody>
             {coupons.length === 0 ? (
               <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
-                Sin cupones. Créalos via la API POST /api/admin/coupons
+                Sin cupones. Usa el botón «+ Nuevo Cupón» para crear el primero.
               </td></tr>
             ) : coupons.map((c) => {
               const expired = new Date(c.expiresAt) < now;

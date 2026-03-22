@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 
 interface Product {
   id: string;
@@ -41,7 +41,7 @@ export default function ProductCard({ product, locale }: ProductCardProps) {
       {/* Image */}
       <div className="product-card-img">
         {imageSrc ? (
-          <Image
+          <SafeImage
             src={imageSrc}
             alt={name}
             fill

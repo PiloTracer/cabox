@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { ShoppingCart, Search, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCartStore } from '@/stores/cart-store';
 import { formatCRC } from '@/lib/format';
 
@@ -16,7 +16,11 @@ export default function Navbar({ locale }: NavbarProps) {
   const t = useTranslations('nav');
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const itemCount = useCartStore((s) => s.totalItems());
+
+  // Prevent hydration mismatch: cart count from localStorage is only available client-side
+  useEffect(() => { setMounted(true); }, []);
 
   const base = `/${locale}`;
 
@@ -57,7 +61,7 @@ export default function Navbar({ locale }: NavbarProps) {
               aria-label={t('cart')}
             >
               <ShoppingCart size={20} />
-              {itemCount > 0 && (
+              {mounted && itemCount > 0 && (
                 <span className="cart-count">{itemCount > 99 ? '99+' : itemCount}</span>
               )}
             </button>
