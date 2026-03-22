@@ -86,11 +86,11 @@ Phase 3 complete. Storefront, admin, checkout, and static pages are all implemen
 238cbaa  feat: Phase 1 — Docker scaffolding...
 ```
 
-Uncommitted changes: Phase 3 additions (checkout, orders, admin product form, static pages, CSS). **Commit before next session.**
+Uncommitted changes: Phase 3 additions (checkout, orders, admin product form, static pages, CSS). **User must commit before proceeding (Agent is restricted from Git Ops).**
 
 ## Atomic Next Steps (Phase 4)
 
-1. `git add . && git commit -m "feat: Phase 3 — checkout, admin CRUD, static pages"` — commit current work
+1. **User Action Required:** Execute `git add . && git commit -m "feat: Phase 3 — checkout, admin CRUD, static pages"` to commit current work.
 2. **Admin order detail page** — `/admin/orders/[id]/page.tsx` — view order items + update status (PATCH `/api/admin/orders/[id]`)
 3. **Admin orders PATCH API** — `app/src/app/api/admin/orders/[id]/route.ts` — update status + payment status
 4. **Category management** — `/admin/categories` — list + create + reorder
