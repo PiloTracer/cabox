@@ -476,6 +476,11 @@ model Product {
   tags            String[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([featured])
+  @@index([createdAt(sort: Desc)])
 }
 
 enum Currency {
@@ -555,6 +560,9 @@ model Customer {
   address   Json?    // { line1, line2, city, province, postalCode, country }
   orders    Order[]
   createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([email])
 }
 
 model Order {
@@ -581,6 +589,11 @@ model Order {
   notes           String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt(sort: Desc)])
 }
 
 enum OrderStatus {
@@ -676,6 +689,10 @@ model Promotion {
   bannerImageUrl String?        // optional promo banner for storefront
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+
+  @@index([slug])
+  @@index([startsAt, endsAt])
+  @@index([isActive])
 }
 
 enum PromotionType {
@@ -707,6 +724,9 @@ model Coupon {
   expiresAt       DateTime
   isActive        Boolean      @default(true)
   createdAt       DateTime     @default(now())
+
+  @@index([code])
+  @@index([isActive, expiresAt])
 }
 
 // ── Price Audit Trail ──
@@ -719,7 +739,17 @@ model PriceChangeLog {
   reason      String?  // "AI suggestion", "Seasonal adjustment", "Manual"
   changedBy   String   // admin user ID
   createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt(sort: Desc)])
 }
+
+// ── Full-Text Search (GIN index added via raw Prisma migration) ──
+// Execute in prisma/migrations/XXXXX_add_fts_index/migration.sql:
+// CREATE INDEX product_fts_idx ON "Product" USING GIN(
+//   to_tsvector('english', "nameEn" || ' ' || "descriptionEn") ||
+//   to_tsvector('spanish', "nameEs" || ' ' || "descriptionEs")
+// );
 ```
 
 ---
@@ -1557,3 +1587,158 @@ Permissions-Policy:          camera=(), microphone=(), geolocation=()
 - **Point-in-time recovery (PITR)**: Available on Supabase Pro plan — restores to any second within the retention window.
 - **Pre-deployment safety**: Before any Prisma migration, run `pg_dump` to a local backup file.
 - **Seed script**: `prisma/seed.ts` allows full dev environment recreation from scratch at any time.
+
+---
+
+## 15. Scalability Safeguards
+
+> [!IMPORTANT]
+> These safeguards are **built into the initial implementation** — not deferred. They prevent the classic problem of rewriting a successful store once it grows past its original capacity.
+
+### 15.1 Database Connection Pooling (PgBouncer)
+
+Prisma creates a new DB connection per serverless invocation. Without pooling, PostgreSQL will hit its connection limit (`max_connections = 100` by default) at ~20+ concurrent users.
+
+**Solution**: Add `pgbouncer` as a sidecar service in `docker-compose.dev.yml` and `docker-compose.prd.yml`:
+
+```yaml
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DATABASE_URL: postgresql://cabox_user:cabox_pass@db:5432/cabox_dev
+      POOL_MODE: transaction          # Best for Next.js (short-lived requests)
+      MAX_CLIENT_CONN: 100            # Max clients connecting to pgbouncer
+      DEFAULT_POOL_SIZE: 20           # Actual connections to PostgreSQL
+    ports:
+      - "${PGBOUNCER_PORT:-6432}:5432"
+    depends_on:
+      - db
+```
+
+**Update `DATABASE_URL`** to point at PgBouncer instead of Postgres directly:
+
+```env
+DATABASE_URL="postgresql://cabox_user:cabox_pass@pgbouncer:5432/cabox_dev?pgbouncer=true"
+```
+
+> The Prisma datasource also needs `connection_limit=1` per worker when using PgBouncer in transaction mode — Next.js handles this automatically with the `?pgbouncer=true` query param.
+
+### 15.2 Database Indices (Performance at Scale)
+
+The Prisma schema (§4) already includes `@@index` directives on all high-traffic query patterns:
+
+| Model | Indexed Fields | Why |
+|-------|---------------|-----|
+| `Product` | `categoryId`, `status`, `featured`, `createdAt DESC` | Catalog list, featured grid, admin sort |
+| `Product` | GIN full-text (via raw migration) | Product search (replaces `LIKE %...%`) |
+| `Customer` | `phone`, `email` | WhatsApp lookup, returning customer detection |
+| `Order` | `customerId`, `status`, `paymentStatus`, `createdAt DESC` | Admin order list, customer order history |
+| `Promotion` | `slug`, `[startsAt, endsAt]`, `isActive` | Active promotion lookup at checkout |
+| `Coupon` | `code`, `[isActive, expiresAt]` | Coupon validation at checkout |
+| `PriceChangeLog` | `productId`, `createdAt DESC` | Audit trail viewer |
+
+### 15.3 Horizontal Scaling (Nginx Upstream)
+
+The production Docker Compose is designed to scale app replicas without downtime:
+
+```yaml
+  app:
+    image: cabox-app:prd
+    deploy:
+      replicas: 2          # Scale to 4, 8, etc. — just change this number
+      restart_policy:
+        condition: on-failure
+```
+
+**Nginx upstream** in `nginx/default.prd.conf` load-balances across replicas:
+
+```nginx
+upstream next_app {
+  least_conn;                         # Route to least-busy replica
+  server app:3000;                    # Docker Compose resolves to all replicas
+  keepalive 32;                       # Reuse connections
+}
+
+server {
+  listen 443 ssl;
+  location / {
+    proxy_pass         http://next_app;
+    proxy_http_version 1.1;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection 'upgrade';
+    proxy_cache_bypass $http_upgrade;
+  }
+}
+```
+
+> **Note**: Sessions are JWT-based (stateless) — any replica can handle any request without sticky sessions.
+
+### 15.4 Image CDN Strategy (Cloudflare)
+
+Supabase Storage serves product images. For scale, add Cloudflare as a CDN proxy layer:
+
+```
+Customer → Cloudflare CDN → Supabase Storage
+          (cached at edge)  (origin)
+```
+
+**Steps (Phase 7)**:
+1. Set custom domain for Supabase Storage bucket (e.g., `cdn.cabox.store`) via Cloudflare DNS CNAME.
+2. Enable Cloudflare caching for `/*.webp`, `/*.jpg`, `/*.png` with TTL = 1 week.
+3. Use `next/image` with `remotePatterns` pointing to `cdn.cabox.store`.
+
+This takes image delivery from **~400ms (Supabase, no CDN)** to **~20ms (Cloudflare edge)**.
+
+### 15.5 Async Job Queue (Background Processing)
+
+Currently, these operations block the HTTP response:
+- Invoice PDF generation (`@react-pdf/renderer`, ~500ms)
+- Email sending via SendGrid (~200ms)
+- WhatsApp notification via Cloud API (~300ms)
+
+**Phase 1 solution**: Run these synchronously (acceptable for MVP).
+
+**At scale (>200 orders/day)**: Add a lightweight Redis-backed job queue:
+
+```typescript
+// lib/queue.ts — using 'bullmq' (backed by existing Redis container)
+import { Queue, Worker } from 'bullmq';
+
+export const emailQueue = new Queue('email', { connection: redisConnection });
+export const invoiceQueue = new Queue('invoice', { connection: redisConnection });
+export const whatsappQueue = new Queue('whatsapp', { connection: redisConnection });
+
+// In API route (non-blocking):
+await emailQueue.add('order-confirmation', { orderId, locale });
+// Returns immediately — worker processes in background
+```
+
+Worker runs as a separate service in `docker-compose.prd.yml`:
+
+```yaml
+  worker:
+    image: cabox-app:prd
+    command: ["node", "worker.js"]    # Separate entry point
+    environment:
+      - DATABASE_URL
+      - SENDGRID_API_KEY
+      - WHATSAPP_ACCESS_TOKEN
+    depends_on:
+      - redis
+      - db
+```
+
+> **Zero infrastructure change** — the same Redis already running for rate limiting is reused for the job queue.
+
+### 15.6 Growth Trigger Roadmap
+
+| When You Hit This | Action Required |
+|-------------------|----------------|
+| **250 WA messages/day** | Complete Meta Business Verification to unlock 1,000/day tier |
+| **500+ concurrent users** | Scale app replicas to 4+ (`docker-compose.prd.yml` → `replicas: 4`) |
+| **1,000+ orders/month** | Move from synchronous email/WA to BullMQ async queue (§15.5) |
+| **DB query time > 100ms** | Run `EXPLAIN ANALYZE` on slow queries; add indices as needed |
+| **Second store spawned** | Update Nginx config to proxy-pass to both stores by subdomain/path |
+| **AI research >500 calls/month** | Audit Google Vision + Perplexity costs; add Redis cache layer for identical research |
+| **Product catalog > 1,000 items** | Add Elasticsearch or use Postgres full-text GIN index migration |
+
