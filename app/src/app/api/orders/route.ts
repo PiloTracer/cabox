@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { sendWhatsAppText, buildOrderConfirmationMessage } from '@/lib/whatsapp';
 
 const orderSchema = z.object({
   customerName: z.string().min(1),
-  customerEmail: z.string().email().optional(),
+  customerEmail: z.string().email().optional().or(z.literal('')),
   customerPhone: z.string().min(1),
   shippingAddress: z.object({
     line1: z.string(),
@@ -13,16 +14,16 @@ const orderSchema = z.object({
     province: z.string(),
     postalCode: z.string().optional(),
     country: z.string().default('CR'),
-  }),
-  paymentMethod: z.enum(['CASH', 'SINPE', 'BANK_TRANSFER', 'CREDIT_CARD', 'PAYPAL']),
+  }).optional().nullable(),
+  paymentMethod: z.enum(['CASH', 'SINPE', 'BANK_TRANSFER', 'TRANSFER', 'CREDIT_CARD', 'STRIPE', 'PAYPAL']),
   currency: z.enum(['CRC', 'USD']).default('CRC'),
   notes: z.string().optional(),
   couponCode: z.string().optional(),
   items: z.array(z.object({
     productId: z.string(),
     variantSku: z.string().nullable().optional(),
-    nameEs: z.string(),
-    nameEn: z.string(),
+    nameEs: z.string().optional().default(''),
+    nameEn: z.string().optional().default(''),
     quantity: z.number().int().positive(),
     price: z.number().positive(),
   })),
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest) {
   const parsed = orderSchema.safeParse(body);
 
   if (!parsed.success) {
+    console.error('[orders] Zod validation errors:', JSON.stringify(parsed.error.flatten(), null, 2));
+    console.error('[orders] Received body:', JSON.stringify(body, null, 2));
     return NextResponse.json(
       { message: 'Datos del pedido inválidos.', errors: parsed.error.flatten() },
       { status: 400 }
@@ -90,7 +93,7 @@ export async function POST(req: NextRequest) {
       shippingCost: data.shippingCost,
       tax: data.tax,
       total: data.total,
-      shippingAddress: data.shippingAddress,
+      shippingAddress: data.shippingAddress ?? {},
       notes: data.notes ?? null,
       locale: 'es',
       items: {
@@ -106,6 +109,17 @@ export async function POST(req: NextRequest) {
     },
     include: { items: true, customer: true },
   });
+
+  // Fire WhatsApp confirmation (non-blocking — never delay the HTTP response)
+  if (customer.phone) {
+    const msg = buildOrderConfirmationMessage({
+      customerName:  customer.name,
+      orderNumber:   order.orderNumber,
+      total:         Number(order.total),
+      paymentMethod: order.paymentMethod,
+    });
+    sendWhatsAppText(customer.phone, msg).catch(console.error);
+  }
 
   return NextResponse.json(order, { status: 201 });
 }

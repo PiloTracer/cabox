@@ -58,6 +58,7 @@ model Product {
   dimensions     Json? // { length, width, height in cm }
   status         ProductStatus  @default(DRAFT)
   featured       Boolean        @default(false)
+  stock          Int            @default(0)
   categoryId     String
   category       Category       @relation(fields: [categoryId], references: [id])
   images         ProductImage[]

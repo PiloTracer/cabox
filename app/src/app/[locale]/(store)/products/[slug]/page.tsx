@@ -1,10 +1,24 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
-import Image from 'next/image';
+import ProductGallery from '@/components/store/ProductGallery';
 import AddToCartButton from '@/components/store/AddToCartButton';
 import ProductCard from '@/components/store/ProductCard';
 import type { Metadata } from 'next';
+
+/** Lightweight markdown → HTML for product descriptions */
+function simpleMarkdown(md: string): string {
+  return md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')  // escape HTML
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')                    // **bold**
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')                                // *italic*
+    .replace(/_(.+?)_/g, '<em>$1</em>')                                  // _italic_
+    .replace(/^- (.+)$/gm, '<li>$1</li>')                               // - list items
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')                       // wrap consecutive <li> in <ul>
+    .replace(/\n{2,}/g, '</p><p>')                                       // double newline = paragraph
+    .replace(/\n/g, '<br/>')                                             // single newline = br
+    .replace(/^/, '<p>').replace(/$/, '</p>');                            // wrap in <p>
+}
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -28,7 +42,7 @@ export default async function ProductDetailPage({ params }: Props) {
     where: { slug },
     include: {
       category: true,
-      inventory: { orderBy: { createdAt: 'desc' }, take: 1 },
+      images: { orderBy: { position: 'asc' } },
     },
   });
 
@@ -36,15 +50,13 @@ export default async function ProductDetailPage({ params }: Props) {
 
   const name = locale === 'es' ? product.nameEs : product.nameEn;
   const description = locale === 'es' ? product.descriptionEs : product.descriptionEn;
-  const images = (product.images as string[] | null) ?? [];
+  const images = product.images.map((img: any) => img.url);
+  const stock = product.stock ?? 0;
 
-  // Total stock
-  const stock = product.inventory.reduce((s, r: any) => {
-    if (r.type === 'RESTOCK' || r.type === 'RETURN') return s + r.quantity;
-    return s - r.quantity;
-  }, 0);
-
-  const hasDiscount = product.comparePrice && product.comparePrice > product.price;
+  const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price;
+  const discountPct = hasDiscount
+    ? Math.round((1 - Number(product.price) / Number(product.compareAtPrice!)) * 100)
+    : 0;
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CR', {
@@ -60,7 +72,7 @@ export default async function ProductDetailPage({ params }: Props) {
       categoryId: product.categoryId,
       id: { not: product.id },
     },
-    include: { category: true },
+    include: { category: true, images: { orderBy: { position: 'asc' } } },
     take: 4,
   });
 
@@ -85,39 +97,12 @@ export default async function ProductDetailPage({ params }: Props) {
 
       {/* Product layout */}
       <div className="product-detail-layout">
-        {/* Image gallery */}
-        <div className="product-gallery">
-          <div className="product-gallery-main">
-            {images[0] ? (
-              <Image
-                src={images[0]}
-                alt={name}
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, 50vw"
-                style={{ objectFit: 'cover', borderRadius: 'var(--radius-xl)' }}
-              />
-            ) : (
-              <div className="product-gallery-placeholder" />
-            )}
-            {hasDiscount && (
-              <div style={{ position: 'absolute', top: '1rem', left: '1rem' }}>
-                <span className="badge badge-sale">
-                  -{Math.round((1 - Number(product.price) / Number(product.comparePrice!)) * 100)}%
-                </span>
-              </div>
-            )}
-          </div>
-          {images.length > 1 && (
-            <div className="product-gallery-thumbs">
-              {images.slice(1, 5).map((img, i) => (
-                <div key={i} className="product-gallery-thumb">
-                  <Image src={img} alt={`${name} ${i + 2}`} fill sizes="80px" style={{ objectFit: 'cover' }} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductGallery
+          images={images}
+          name={name}
+          hasDiscount={!!hasDiscount}
+          discountPct={discountPct}
+        />
 
         {/* Product info */}
         <div className="product-info">
@@ -133,7 +118,7 @@ export default async function ProductDetailPage({ params }: Props) {
             </span>
             {hasDiscount && (
               <span className="price price-original product-compare-price">
-                {fmt(Number(product.comparePrice))}
+                {fmt(Number(product.compareAtPrice))}
               </span>
             )}
           </div>
@@ -153,9 +138,10 @@ export default async function ProductDetailPage({ params }: Props) {
 
           {/* Description */}
           {description && (
-            <div className="product-description">
-              <p>{description}</p>
-            </div>
+            <div
+              className="product-description"
+              dangerouslySetInnerHTML={{ __html: simpleMarkdown(description) }}
+            />
           )}
 
           {/* Actions */}
@@ -163,7 +149,9 @@ export default async function ProductDetailPage({ params }: Props) {
             <AddToCartButton
               product={{
                 id: product.id,
-                name,
+                nameEs: product.nameEs,
+                nameEn: product.nameEn ?? product.nameEs,
+                sku: product.sku,
                 price: Number(product.price),
                 currency: product.currency,
                 image: images[0] ?? null,
@@ -197,7 +185,7 @@ export default async function ProductDetailPage({ params }: Props) {
             {related.map((p) => (
               <ProductCard
                 key={p.id}
-                product={{ ...p, price: Number(p.price), comparePrice: p.comparePrice ? Number(p.comparePrice) : null, images: p.images as string[] }}
+                product={{ ...p, price: Number(p.price), comparePrice: p.compareAtPrice ? Number(p.compareAtPrice) : null, images: p.images.map((img: any) => img.url) }}
                 locale={locale}
               />
             ))}

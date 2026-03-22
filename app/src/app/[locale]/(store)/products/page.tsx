@@ -30,7 +30,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         ],
       } : {}),
     },
-    include: { category: true },
+    include: { category: true, images: { orderBy: { position: 'asc' } } },
     orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
   });
 
@@ -67,9 +67,9 @@ export default async function ProductsPage({ searchParams }: Props) {
                 key={product.id}
                 product={{
                   ...product,
-                  comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+                  comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
                   price: Number(product.price),
-                  images: product.images as string[],
+                  images: product.images.map((img: any) => img.url),
                 }}
                 locale={locale}
               />

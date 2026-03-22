@@ -26,8 +26,11 @@ export default function CheckoutForm({ locale }: Props) {
   const router = useRouter();
   const { items, subtotal, total, clearCart } = useCartStore();
   const [method, setMethod] = useState('SINPE');
+  const [delivery, setDelivery] = useState<'pickup' | 'delivery'>('pickup');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const needsAddress = delivery === 'delivery';
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC', maximumFractionDigits: 0 }).format(n);
@@ -51,31 +54,29 @@ export default function CheckoutForm({ locale }: Props) {
     const fd = new FormData(e.currentTarget);
 
     const payload = {
-      customerEmail: fd.get('email'),
+      customerEmail: fd.get('email') || undefined,
       customerName: `${fd.get('firstName')} ${fd.get('lastName')}`,
       customerPhone: fd.get('phone'),
-      shippingAddress: {
-        line1: fd.get('address'),
-        city: fd.get('city'),
-        province: fd.get('province'),
+      shippingAddress: needsAddress ? {
+        line1: fd.get('address') as string,
+        city: fd.get('city') as string,
+        province: fd.get('province') as string,
         country: 'CR',
-      },
+      } : undefined,
       paymentMethod: method,
       currency: 'CRC',
       items: items.map((i) => ({
         productId: i.id,
-        variantId: i.variantId ?? null,
-        sku: i.sku,
+        variantSku: i.variantId ?? null,
         nameEs: i.nameEs,
         nameEn: i.nameEn,
         quantity: i.quantity,
-        unitPrice: i.price,
-        totalPrice: i.price * i.quantity,
+        price: i.price,
       })),
       subtotal: subtotal(),
-      shipping: 0,
+      shippingCost: 0,
       tax: 0,
-      discount: 0,
+      discountAmount: 0,
       total: total(),
     };
 
@@ -93,54 +94,173 @@ export default function CheckoutForm({ locale }: Props) {
       router.push(`/${locale}/orders/${order.orderNumber}`);
     } else {
       const err = await res.json().catch(() => ({}));
-      setError(err.message ?? 'Error al procesar el pedido. Intenta de nuevo.');
+      const detail = err.errors ? JSON.stringify(err.errors, null, 2) : '';
+      setError((err.message ?? 'Error al procesar el pedido.') + (detail ? '\n' + detail : ''));
     }
   };
+
+  /* ── Styles for required field labels ── */
+  const requiredLabelStyle: React.CSSProperties = {
+    fontWeight: 600,
+    color: 'var(--color-heading)',
+  };
+  const requiredDotStyle: React.CSSProperties = {
+    display: 'inline-block',
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: 'var(--color-primary)',
+    marginLeft: 6,
+    verticalAlign: 'middle',
+  };
+  const requiredInputStyle: React.CSSProperties = {
+    borderColor: 'var(--color-primary)',
+    borderWidth: '1.5px',
+  };
+  const optionalInputStyle: React.CSSProperties = {};
 
   return (
     <div className="checkout-layout">
       {/* Form */}
       <form onSubmit={handleSubmit} className="checkout-form">
-        {/* Contact */}
+        {/* Contact info */}
         <div className="card card-body checkout-section">
           <h2 className="checkout-section-title">{t('customerInfo')}</h2>
+
           <div className="checkout-row">
             <div className="form-group">
-              <label className="form-label">{t('firstName')} *</label>
-              <input className="input" name="firstName" required />
+              <label className="form-label" style={requiredLabelStyle}>
+                Nombre <span style={requiredDotStyle} />
+              </label>
+              <input className="input" name="firstName" required style={requiredInputStyle} />
             </div>
             <div className="form-group">
-              <label className="form-label">{t('lastName')} *</label>
-              <input className="input" name="lastName" required />
+              <label className="form-label" style={requiredLabelStyle}>
+                Apellido <span style={requiredDotStyle} />
+              </label>
+              <input className="input" name="lastName" required style={requiredInputStyle} />
             </div>
           </div>
+
           <div className="checkout-row">
             <div className="form-group">
-              <label className="form-label">{t('email')} *</label>
-              <input className="input" name="email" type="email" required />
+              <label className="form-label" style={requiredLabelStyle}>
+                Teléfono <span style={requiredDotStyle} />
+              </label>
+              <input
+                className="input"
+                name="phone"
+                type="tel"
+                required
+                placeholder="+506 8888-8888"
+                style={requiredInputStyle}
+              />
             </div>
             <div className="form-group">
-              <label className="form-label">{t('phone')} *</label>
-              <input className="input" name="phone" type="tel" required placeholder="+506 8888-8888" />
+              <label className="form-label">
+                Email <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>(opcional)</span>
+              </label>
+              <input className="input" name="email" type="email" placeholder="correo@ejemplo.com" style={optionalInputStyle} />
             </div>
           </div>
         </div>
 
-        {/* Shipping */}
+        {/* Delivery method */}
         <div className="card card-body checkout-section">
-          <h2 className="checkout-section-title">{t('shippingAddress')}</h2>
+          <h2 className="checkout-section-title">Método de entrega</h2>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <label
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '1rem',
+                borderRadius: 'var(--radius-lg)',
+                border: delivery === 'pickup' ? '2px solid var(--color-primary)' : '1.5px solid var(--color-border)',
+                background: delivery === 'pickup' ? 'rgba(139,69,19,0.04)' : 'var(--color-bg)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              <input
+                type="radio"
+                name="delivery"
+                checked={delivery === 'pickup'}
+                onChange={() => setDelivery('pickup')}
+                style={{ display: 'none' }}
+              />
+              <span style={{ fontSize: '1.5rem' }}>🏪</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Pasa a recoger</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>Sin costo adicional</div>
+              </div>
+            </label>
+
+            <label
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '1rem',
+                borderRadius: 'var(--radius-lg)',
+                border: delivery === 'delivery' ? '2px solid var(--color-primary)' : '1.5px solid var(--color-border)',
+                background: delivery === 'delivery' ? 'rgba(139,69,19,0.04)' : 'var(--color-bg)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              <input
+                type="radio"
+                name="delivery"
+                checked={delivery === 'delivery'}
+                onChange={() => setDelivery('delivery')}
+                style={{ display: 'none' }}
+              />
+              <span style={{ fontSize: '1.5rem' }}>🚚</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Entrega a domicilio</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>Coordinamos por WhatsApp</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {/* Shipping address */}
+        <div className="card card-body checkout-section" style={{ opacity: needsAddress ? 1 : 0.6, transition: 'opacity 0.2s' }}>
+          <h2 className="checkout-section-title">
+            Dirección de entrega
+            {!needsAddress && (
+              <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>
+                (opcional — solo si deseas recibirlo)
+              </span>
+            )}
+          </h2>
           <div className="form-group">
-            <label className="form-label">{t('address')} *</label>
-            <input className="input" name="address" required />
+            <label className="form-label" style={needsAddress ? requiredLabelStyle : {}}>
+              Dirección {needsAddress && <span style={requiredDotStyle} />}
+            </label>
+            <input
+              className="input"
+              name="address"
+              required={needsAddress}
+              placeholder="Calle, número, barrio, señas adicionales"
+              style={needsAddress ? requiredInputStyle : optionalInputStyle}
+            />
           </div>
           <div className="checkout-row">
             <div className="form-group">
-              <label className="form-label">{t('city')} *</label>
-              <input className="input" name="city" required />
+              <label className="form-label" style={needsAddress ? requiredLabelStyle : {}}>
+                Ciudad {needsAddress && <span style={requiredDotStyle} />}
+              </label>
+              <input className="input" name="city" required={needsAddress} style={needsAddress ? requiredInputStyle : optionalInputStyle} />
             </div>
             <div className="form-group">
-              <label className="form-label">{t('province')} *</label>
-              <select className="input" name="province" required>
+              <label className="form-label" style={needsAddress ? requiredLabelStyle : {}}>
+                Provincia {needsAddress && <span style={requiredDotStyle} />}
+              </label>
+              <select className="input" name="province" required={needsAddress} style={needsAddress ? requiredInputStyle : optionalInputStyle}>
                 <option value="">Seleccionar…</option>
                 {PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -190,6 +310,11 @@ export default function CheckoutForm({ locale }: Props) {
           )}
         </div>
 
+        {/* Required fields legend */}
+        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span style={{ ...requiredDotStyle, marginLeft: 0 }} /> Campos requeridos
+        </p>
+
         {error && <div className="alert alert-error">{error}</div>}
 
         <button
@@ -220,8 +345,8 @@ export default function CheckoutForm({ locale }: Props) {
             <span>{fmt(subtotal())}</span>
           </div>
           <div className="checkout-total-row">
-            <span>{t('shipping')}</span>
-            <span>Por calcular</span>
+            <span>Entrega</span>
+            <span>{delivery === 'pickup' ? 'Gratis (recoger)' : 'Por calcular'}</span>
           </div>
           <div className="checkout-total-row checkout-grand-total">
             <span>{t('total')}</span>

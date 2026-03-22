@@ -17,6 +17,7 @@ const updateSchema = z.object({
   categoryId: z.string().nullable().optional(),
   status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
   featured: z.boolean().optional(),
+  stock: z.number().int().min(0).optional(),
   images: z.array(z.string()).optional(),
 });
 
@@ -42,7 +43,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) {
+    console.error('[PUT /api/admin/products] Zod errors:', JSON.stringify(parsed.error.flatten(), null, 2));
+    return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 400 });
+  }
 
   const data = parsed.data;
 
@@ -62,12 +66,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
       ...(data.sku !== undefined && { sku: data.sku }),
       ...(data.slug !== undefined && { slug: data.slug }),
       ...(data.price !== undefined && { price: data.price }),
-      ...(data.comparePrice !== undefined && { comparePrice: data.comparePrice }),
+      ...(data.comparePrice !== undefined && { compareAtPrice: data.comparePrice }),
       ...(data.currency !== undefined && { currency: data.currency }),
       ...(data.categoryId !== undefined && { categoryId: data.categoryId || null }),
       ...(data.status !== undefined && { status: data.status }),
       ...(data.featured !== undefined && { featured: data.featured }),
-      ...(data.images !== undefined && { images: data.images }),
+      ...(data.stock !== undefined && { stock: data.stock }),
+      ...(data.images !== undefined && { 
+        images: {
+          deleteMany: {},
+          create: data.images.map((url: string, i: number) => ({ url, position: i }))
+        }
+      }),
     },
   });
 

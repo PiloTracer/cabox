@@ -1,5 +1,6 @@
 import { getTranslations, getLocale } from 'next-intl/server';
 import Link from 'next/link';
+import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import ProductCard from '@/components/store/ProductCard';
 import type { Metadata } from 'next';
@@ -16,7 +17,7 @@ export default async function HomePage() {
   // Featured products
   const featured = await prisma.product.findMany({
     where: { status: 'ACTIVE', featured: true },
-    include: { category: true },
+    include: { category: true, images: { orderBy: { position: 'asc' } } },
     orderBy: { createdAt: 'desc' },
     take: 4,
   });
@@ -33,17 +34,28 @@ export default async function HomePage() {
       {/* Hero */}
       <section className="store-hero">
         <div className="container">
-          <div className="store-hero-content animate-fade-in">
-            <span className="badge badge-new" style={{ marginBottom: '1rem' }}>Nueva colección</span>
-            <h1 className="store-hero-title">{t('welcome')}</h1>
-            <p className="store-hero-sub">{t('tagline')}</p>
-            <div className="store-hero-actions">
-              <Link href={`/${locale}/products`} className="btn btn-primary btn-lg">
-                {t('shopNow')}
-              </Link>
-              <Link href={`/${locale}/products?cat=accesorios`} className="btn btn-secondary btn-lg">
-                Accesorios
-              </Link>
+          <div className="store-hero-inner">
+            <div className="store-hero-content animate-fade-in">
+              <span className="badge badge-new" style={{ marginBottom: '1rem' }}>Nueva colección</span>
+              <h1 className="store-hero-title">{t('welcome')}</h1>
+              <p className="store-hero-sub">{t('tagline')}</p>
+              <div className="store-hero-actions">
+                <Link href={`/${locale}/products`} className="btn btn-primary btn-lg">
+                  {t('shopNow')}
+                </Link>
+                <Link href={`/${locale}/products?cat=accesorios`} className="btn btn-secondary btn-lg">
+                  Accesorios
+                </Link>
+              </div>
+            </div>
+            <div className="store-hero-image">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/cabox_hero_transp.png"
+                alt="Cabox — Moda Curada"
+                width={480}
+                height={480}
+              />
             </div>
           </div>
         </div>
@@ -80,7 +92,7 @@ export default async function HomePage() {
               {featured.map((product) => (
                 <ProductCard
                   key={product.id}
-                  product={{ ...product, comparePrice: product.comparePrice ? Number(product.comparePrice) : null, price: Number(product.price), images: product.images as string[] }}
+                  product={{ ...product, comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : null, price: Number(product.price), images: product.images.map((img: any) => img.url) }}
                   locale={locale}
                 />
               ))}

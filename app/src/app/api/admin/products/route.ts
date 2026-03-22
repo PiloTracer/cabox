@@ -17,7 +17,9 @@ const productSchema = z.object({
   categoryId: z.string().nullable().default(null),
   status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).default('DRAFT'),
   featured: z.boolean().default(false),
-  images: z.array(z.string()).default([]),
+  stock: z.number().int().min(0).default(0),
+  // images: accept URL strings for convenience; server converts to ProductImage records
+  images: z.array(z.string().url()).default([]),
 });
 
 async function requireAdmin() {
@@ -45,22 +47,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'El slug ya existe. Por favor usa uno diferente.' }, { status: 409 });
   }
 
+  // Uniqueness guard for SKU too
+  const skuExists = await prisma.product.findUnique({ where: { sku: data.sku } });
+  if (skuExists) return NextResponse.json({ message: 'El SKU ya existe.' }, { status: 409 });
+
   const product = await prisma.product.create({
     data: {
-      nameEs: data.nameEs,
-      nameEn: data.nameEn,
-      descriptionEs: data.descriptionEs || null,
-      descriptionEn: data.descriptionEn || null,
-      sku: data.sku,
-      slug: data.slug,
-      price: data.price,
-      comparePrice: data.comparePrice,
-      currency: data.currency,
-      categoryId: data.categoryId || null,
-      status: data.status,
-      featured: data.featured,
-      images: data.images,
+      nameEs:        data.nameEs,
+      nameEn:        data.nameEn,
+      descriptionEs: data.descriptionEs ?? '',
+      descriptionEn: data.descriptionEn ?? '',
+      sku:           data.sku,
+      slug:          data.slug,
+      price:         data.price,
+      compareAtPrice: data.comparePrice,
+      currency:      data.currency,
+      categoryId:    data.categoryId!,
+      status:        data.status,
+      featured:      data.featured,
+      stock:         data.stock,
+      images: {
+        create: data.images.map((url, i) => ({ url, position: i })),
+      },
     },
+    include: { images: true, category: true },
   });
 
   return NextResponse.json(product, { status: 201 });

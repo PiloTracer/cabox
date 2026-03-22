@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -33,28 +34,39 @@ export default function AdminLoginPage() {
 
   return (
     <div className="login-page">
-      <div className="card login-card">
-        <div className="login-logo">Cabox</div>
-        <p className="login-subtitle">Panel de administración</p>
+      {/* Decorative background blobs */}
+      <div className="login-blob login-blob-1" />
+      <div className="login-blob login-blob-2" />
+
+      <div className="login-card animate-fade-in">
+        {/* Logo */}
+        <div className="login-logo-wrap">
+          <Image
+            src="/logo.jpeg"
+            alt="Cabox — Curated Fashion"
+            width={96}
+            height={96}
+            className="login-logo-img"
+            priority
+          />
+        </div>
+
+        <div className="login-brand">
+          <span className="login-brand-name">Cabox</span>
+          <span className="login-brand-tag">Panel de administración</span>
+        </div>
 
         {error && (
-          <div
-            style={{
-              background: '#fee2e2', color: 'var(--color-error)',
-              border: '1px solid #fca5a5', borderRadius: 'var(--radius-lg)',
-              padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '0.9rem',
-            }}
-          >
-            {error}
+          <div className="alert alert-error" role="alert">
+            <span>⚠️</span> {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.375rem', fontSize: '0.9rem' }}>
-              Email
-            </label>
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
+            <label htmlFor="email" className="form-label">Email</label>
             <input
+              id="email"
               className="input"
               type="email"
               name="email"
@@ -64,28 +76,37 @@ export default function AdminLoginPage() {
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.375rem', fontSize: '0.9rem' }}>
-              Contraseña
-            </label>
+          <div className="form-group">
+            <label htmlFor="password" className="form-label">Contraseña</label>
             <input
+              id="password"
               className="input"
               type="password"
               name="password"
               required
               autoComplete="current-password"
+              placeholder="••••••••"
             />
           </div>
 
           <button
             type="submit"
-            className="btn btn-primary"
+            className="btn btn-primary btn-lg"
             disabled={loading}
-            style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
+            style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}
           >
-            {loading ? 'Iniciando sesión…' : 'Iniciar sesión'}
+            {loading ? (
+              <>
+                <span className="spin" style={{ display: 'inline-block', width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%' }} />
+                Iniciando sesión…
+              </>
+            ) : 'Iniciar sesión'}
           </button>
         </form>
+
+        <p className="login-footer-text">
+          Cabox — Curated Fashion &copy; {new Date().getFullYear()}
+        </p>
       </div>
     </div>
   );

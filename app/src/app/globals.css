@@ -156,6 +156,14 @@ a:hover { color: var(--color-primary-dark); }
 .navbar-logo {
   font-family: var(--font-display); font-size: 1.5rem; font-weight: 700;
   color: var(--color-primary); letter-spacing: -0.02em; flex-shrink: 0;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.navbar-logo-img {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--color-border);
+  flex-shrink: 0;
 }
 .navbar-links { display: flex; gap: 1.5rem; flex: 1; }
 .navbar-link { color: var(--color-text); font-weight: 500; font-size: 0.9375rem; transition: color var(--transition-fast); }
@@ -329,14 +337,38 @@ a:hover { color: var(--color-primary-dark); }
 /* ── Home Page ──────────────────────────────────────────────── */
 .store-hero {
   background: linear-gradient(135deg, #8B5E3C 0%, #6B4226 60%, #C75B7A 100%);
-  color: white; min-height: 520px; display: flex; align-items: center;
+  color: white; min-height: 420px; display: flex; align-items: center;
   position: relative; overflow: hidden;
 }
 .store-hero::before {
   content: ''; position: absolute; inset: 0;
   background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
-.store-hero-content { position: relative; z-index: 1; max-width: 580px; }
+.store-hero-inner {
+  position: relative; z-index: 1;
+  display: flex; align-items: flex-end; gap: 2rem;
+  padding-block: 3rem 0;
+}
+.store-hero-content { flex: 1; max-width: 540px; padding-bottom: 3rem; }
+.store-hero-image {
+  flex: 0 0 auto;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.store-hero-image img {
+  max-height: 380px; width: auto;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.25));
+  object-fit: contain;
+}
+@media (max-width: 900px) {
+  .store-hero { min-height: auto; }
+  .store-hero-inner { flex-direction: column; text-align: center; align-items: center; padding-block: 2rem 0; }
+  .store-hero-content { max-width: 100%; padding-bottom: 1.5rem; }
+  .store-hero-actions { justify-content: center; }
+  .store-hero-image img { max-height: 280px; }
+}
+@media (max-width: 480px) {
+  .store-hero-image img { max-height: 200px; }
+}
 .store-hero-title { color: white; font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 1rem; }
 .store-hero-sub { color: rgba(255,255,255,0.9); font-size: 1.125rem; margin-bottom: 2rem; }
 .store-hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
@@ -492,6 +524,69 @@ a:hover { color: var(--color-primary-dark); }
 .contact-card p { font-size: 0.875rem; color: var(--color-text-muted); margin: 0 !important; }
 .contact-detail { color: var(--color-primary) !important; font-weight: 600; margin-top: 0.5rem !important; }
 
+/* ── Admin Login Page ────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #FAF3EB 0%, #F0E4D0 50%, #FAF3EB 100%);
+  padding: 1.5rem;
+  position: relative; overflow: hidden;
+}
+.login-blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(80px); opacity: 0.35; pointer-events: none;
+}
+.login-blob-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, #D4956A, #8B5E3C);
+  top: -150px; right: -150px;
+}
+.login-blob-2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, #C75B7A, #8B5E3C);
+  bottom: -120px; left: -120px;
+}
+.login-card {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 60px rgb(139 94 60 / 0.18), 0 4px 16px rgb(139 94 60 / 0.1);
+  padding: 2.5rem 2rem;
+  width: 100%; max-width: 420px;
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+.login-logo-wrap {
+  display: flex; justify-content: center; margin-bottom: 0.25rem;
+}
+.login-logo-img {
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  border: 3px solid var(--color-border);
+  object-fit: cover;
+  box-shadow: 0 4px 16px rgb(139 94 60 / 0.2);
+}
+.login-brand {
+  text-align: center;
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.login-brand-name {
+  font-family: var(--font-display);
+  font-size: 1.875rem; font-weight: 700;
+  color: var(--color-primary); letter-spacing: -0.02em;
+}
+.login-brand-tag {
+  font-size: 0.875rem; color: var(--color-text-muted); font-weight: 400;
+}
+.login-form {
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.login-footer-text {
+  text-align: center; font-size: 0.75rem;
+  color: var(--color-text-muted); margin-top: 0.5rem;
+}
+
 /* FAQ */
 .faq-list { display: flex; flex-direction: column; gap: 0.625rem; margin-top: 1rem; }
 .faq-item {
@@ -507,3 +602,24 @@ a:hover { color: var(--color-primary-dark); }
 .faq-question::after { content: '+'; font-size: 1.25rem; color: var(--color-primary); transition: transform var(--transition-fast); }
 .faq-item[open] .faq-question::after { content: '−'; }
 .faq-answer { padding: 0 1.25rem 1rem; color: var(--color-text-muted); font-size: 0.9375rem; line-height: 1.6; }
+
+/* ── Markdown Preview (MarkdownEditor component) ─────────────── */
+.markdown-preview { font-size: 0.875rem; line-height: 1.7; color: var(--color-text); }
+.markdown-preview h1, .markdown-preview h2, .markdown-preview h3 {
+  font-family: var(--font-display); font-weight: 700;
+  color: var(--color-primary); margin: 0.75rem 0 0.375rem;
+}
+.markdown-preview h1 { font-size: 1.25rem; }
+.markdown-preview h2 { font-size: 1.05rem; }
+.markdown-preview h3 { font-size: 0.95rem; }
+.markdown-preview p { margin: 0 0 0.625rem; }
+.markdown-preview ul, .markdown-preview ol { margin: 0 0 0.625rem 1.25rem; }
+.markdown-preview li { margin-bottom: 0.25rem; }
+.markdown-preview strong { font-weight: 700; color: var(--color-text); }
+.markdown-preview em { font-style: italic; color: var(--color-text-muted); }
+.markdown-preview code {
+  font-family: var(--font-mono, monospace); font-size: 0.8em;
+  background: var(--color-border-light, rgba(0,0,0,0.06));
+  padding: 1px 5px; border-radius: 4px;
+}
+.markdown-preview hr { border: none; border-top: 1px solid var(--color-border); margin: 0.75rem 0; }

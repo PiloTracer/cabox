@@ -41,6 +41,31 @@ You are not a code monkey. You are a disciplined engineering professional. This 
 
 ---
 
+## 👑 KING RULE — Package Installation Discipline
+
+> **NEVER INSTALL PACKAGES ON THE HOST MACHINE. EVER.**
+
+All dependencies MUST be installed **inside the relevant Docker container**. This is non-negotiable.
+
+### Per-Ecosystem Rules
+
+| Ecosystem | Install Command (inside container) | Manifest to update |
+|-----------|-----------------------------------|-------------------|
+| **Node.js / Next.js** | `docker compose -f docker-compose.dev.yml exec app npm install <pkg> --save` | `app/package.json` is updated automatically by npm |
+| **Python** | `docker compose -f docker-compose.dev.yml exec <service> pip install <pkg>` | Manually add to `requirements.txt` so it persists on rebuild |
+| **System (apt)** | Add `RUN apt-get install <pkg>` to the `Dockerfile.*` | The Dockerfile IS the manifest — rebuild the image |
+
+### Enforcement
+- `npm install` on host → **FORBIDDEN**
+- `pip install` on host → **FORBIDDEN**
+- `apt install` on host → **FORBIDDEN**
+- After installing inside a container, **always verify** the manifest file was updated.
+- If a package is needed for production, it MUST be in the manifest before merging.
+
+> **Why?** Host-installed packages don't survive container rebuilds. They create invisible environment differences between team members. They are a form of technical debt that silently breaks CI/CD.
+
+---
+
 
 ## Required Context Files
 At the start of each session, read these files in order:
@@ -52,7 +77,7 @@ At the start of each session, read these files in order:
 ## Operational Rules
 
 ### 1. Docker-First Development
-- **NEVER** install Node.js, PostgreSQL, or Redis on the host machine.
+- **NEVER** install Node.js, PostgreSQL, Redis, or any runtime on the host machine.
 - **ALL commands** run inside Docker containers:
   ```bash
   docker compose -f docker-compose.dev.yml exec app <command>

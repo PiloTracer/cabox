@@ -57,7 +57,10 @@
     "sinpeInstructions": "Send {amount} to number {phone} ({name}). Include order number as reference.",
     "transferInstructions": "Transfer {amount} to IBAN {iban} in the name of {name} ({bank}). Include order number.",
     "orderConfirmed": "Order confirmed!",
-    "orderNumber": "Order number"
+    "orderNumber": "Order number",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "total": "Total"
   },
   "orders": {
     "title": "Order status",

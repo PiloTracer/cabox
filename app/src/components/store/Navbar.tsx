@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { ShoppingCart, Search, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCartStore } from '@/stores/cart-store';
+import { formatCRC } from '@/lib/format';
 
 interface NavbarProps {
   locale: string;
@@ -23,8 +25,16 @@ export default function Navbar({ locale }: NavbarProps) {
       <header className="navbar">
         <div className="container navbar-inner">
           {/* Logo */}
-          <Link href={base} className="navbar-logo">
-            Cabox
+          <Link href={base} className="navbar-logo" title="Cabox — Moda Curada">
+            <Image
+              src="/logo.png"
+              alt="Cabox"
+              width={36}
+              height={36}
+              className="navbar-logo-img"
+              priority
+            />
+            <span>Cabox</span>
           </Link>
 
           {/* Desktop nav */}
@@ -87,8 +97,7 @@ function CartDrawer({ onClose, locale }: { onClose: () => void; locale: string }
   const removeItem = useCartStore((s) => s.removeItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
 
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC', maximumFractionDigits: 0 }).format(n);
+  const fmt = formatCRC;
 
   return (
     <>
