@@ -444,6 +444,27 @@ FodyWeavers.xsd
 # AI Rules
 AI_RULES.md
 
+# Cabox — per-store generated envs (never commit)
+.env.cabox
+.env.boutique
+.env.*
+!.env.example
+
+# Prisma migrations are committed in a team project;
+# keep them for solo dev workflow consistency.
+# app/prisma/migrations/
+
+# spawn_store.sh generated envs
+.env.!(.dev)
+
+# Next.js standalone build output
+app/.next/
+app/out/
+
+# PWA workbox generated files
+app/public/workbox-*.js
+app/public/sw.js
+
 # Other:
 #.claude/
 #.antigravity/

@@ -1,0 +1,87 @@
+{
+  "home": {
+    "welcome": "Cabox — Moda Curada",
+    "tagline": "Estilo premium para el día a día.",
+    "shopNow": "Ver Colección"
+  },
+  "nav": {
+    "products": "Productos",
+    "categories": "Categorías",
+    "cart": "Carrito",
+    "search": "Buscar..."
+  },
+  "product": {
+    "addToCart": "Agregar al carrito",
+    "outOfStock": "Agotado",
+    "saleEndsIn": "Oferta termina en",
+    "share": "Compartir",
+    "buyViaWhatsApp": "Comprar por WhatsApp",
+    "relatedProducts": "Productos relacionados",
+    "details": "Detalles"
+  },
+  "cart": {
+    "title": "Mi Carrito",
+    "empty": "Tu carrito está vacío",
+    "continueShopping": "Seguir comprando",
+    "subtotal": "Subtotal",
+    "shipping": "Envío",
+    "total": "Total",
+    "checkout": "Proceder al pago",
+    "remove": "Eliminar",
+    "priceUpdated": "Precio actualizado para {product}",
+    "outOfStockRemoved": "{product} fue eliminado (agotado)",
+    "couponPlaceholder": "Código de descuento",
+    "applyCoupon": "Aplicar",
+    "couponApplied": "¡Código aplicado!",
+    "couponInvalid": "Código inválido o expirado"
+  },
+  "checkout": {
+    "title": "Pagar",
+    "customerInfo": "Información de contacto",
+    "shippingAddress": "Dirección de entrega",
+    "paymentMethod": "Método de pago",
+    "orderSummary": "Resumen del pedido",
+    "placeOrder": "Confirmar pedido",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "address": "Dirección",
+    "city": "Ciudad",
+    "province": "Provincia",
+    "payWithCard": "Tarjeta de crédito/débito",
+    "payWithPayPal": "PayPal",
+    "payWithSINPE": "SINPE Móvil",
+    "payWithTransfer": "Transferencia bancaria",
+    "payWithCash": "Efectivo (entrega en acuerdo)",
+    "sinpeInstructions": "Enviar {amount} al número {phone} ({name}). Incluir el número de pedido como referencia.",
+    "transferInstructions": "Transferir {amount} al IBAN {iban} a nombre de {name} ({bank}). Incluir número de pedido.",
+    "orderConfirmed": "¡Pedido confirmado!",
+    "orderNumber": "Número de pedido"
+  },
+  "orders": {
+    "title": "Estado de pedido",
+    "status": {
+      "PENDING": "Pendiente",
+      "CONFIRMED": "Confirmado",
+      "PROCESSING": "En proceso",
+      "SHIPPED": "Enviado",
+      "DELIVERED": "Entregado",
+      "CANCELLED": "Cancelado"
+    },
+    "paymentStatus": {
+      "UNPAID": "Sin pagar",
+      "PAID": "Pagado",
+      "REFUNDED": "Reembolsado"
+    }
+  },
+  "footer": {
+    "copyright": "© {year} Cabox. Todos los derechos reservados.",
+    "contact": "Contacto"
+  },
+  "errors": {
+    "notFound": "Página no encontrada",
+    "serverError": "Error del servidor",
+    "goHome": "Volver al inicio"
+  }
+}

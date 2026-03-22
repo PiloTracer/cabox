@@ -1,0 +1,349 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // PgBouncer in transaction mode requires directUrl for migrations
+  directUrl = env("DATABASE_URL_DIRECT")
+}
+
+// ── Users & Auth ─────────────────────────────────────────────
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  SUPER_ADMIN
+}
+
+// ── Product Catalog ──────────────────────────────────────────
+model Category {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  nameEn    String
+  nameEs    String
+  image     String?
+  parentId  String?
+  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children  Category[] @relation("SubCategories")
+  products  Product[]
+  createdAt DateTime   @default(now())
+}
+
+model Product {
+  id             String         @id @default(cuid())
+  sku            String         @unique
+  slug           String         @unique
+  nameEn         String
+  nameEs         String
+  descriptionEn  String         @db.Text
+  descriptionEs  String         @db.Text
+  price          Decimal        @db.Decimal(10, 2)
+  compareAtPrice Decimal?       @db.Decimal(10, 2)
+  costPrice      Decimal?       @db.Decimal(10, 2)
+  currency       Currency       @default(CRC)
+  weight         Decimal?       @db.Decimal(8, 2) // grams
+  dimensions     Json? // { length, width, height in cm }
+  status         ProductStatus  @default(DRAFT)
+  featured       Boolean        @default(false)
+  categoryId     String
+  category       Category       @relation(fields: [categoryId], references: [id])
+  images         ProductImage[]
+  variants       ProductVariant[]
+  inventory      InventoryRecord[]
+  orderItems     OrderItem[]
+  referenceData  ProductReference?
+  priceHistory   PriceChangeLog[]
+  tags           String[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([featured])
+  @@index([createdAt(sort: Desc)])
+}
+
+enum Currency {
+  CRC // Costa Rican Colón
+  USD // US Dollar
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String?
+  position  Int     @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariant {
+  id         String  @id @default(cuid())
+  nameEn     String // e.g. "Red / Large"
+  nameEs     String
+  sku        String  @unique
+  price      Decimal? @db.Decimal(10, 2) // overrides base price when set
+  stock      Int     @default(0)
+  attributes Json // { color: "red", size: "L" }
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ── AI Product Research (Admin) ──────────────────────────────
+model ProductReference {
+  id                String    @id @default(cuid())
+  productId         String    @unique
+  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  referenceImageUrl String?
+  visionLabels      Json? // Google Vision API output
+  aiSpecs           Json? // Perplexity structured specs
+  aiDescription     Json? // { en: "...", es: "..." }
+  marketPrices      Json? // [{ source: "amazon", price: 29.99, url: "..." }, ...]
+  suggestedPrice    Decimal?  @db.Decimal(10, 2)
+  promoImages       Json? // [{ url, source, thumbnail }]
+  lastResearchedAt  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ── Inventory ────────────────────────────────────────────────
+model InventoryRecord {
+  id        String        @id @default(cuid())
+  productId String
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  type      InventoryType
+  note      String?
+  createdAt DateTime      @default(now())
+}
+
+enum InventoryType {
+  RESTOCK
+  SALE
+  ADJUSTMENT
+  RETURN
+}
+
+// ── Customers & Orders ───────────────────────────────────────
+model Customer {
+  id         String   @id @default(cuid())
+  name       String
+  email      String?
+  phone      String // primary ID for WhatsApp lookup
+  whatsappId String?
+  address    Json? // { line1, line2, city, province, postalCode, country }
+  orders     Order[]
+  createdAt  DateTime @default(now())
+
+  @@index([phone])
+  @@index([email])
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique // CBX-20260321-XXXX
+  customerId      String
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+  invoices        Invoice[]
+  subtotal        Decimal       @db.Decimal(10, 2)
+  discountAmount  Decimal       @db.Decimal(10, 2) @default(0)
+  couponCode      String? // snapshot at checkout
+  promotionId     String? // snapshot at checkout
+  shippingCost    Decimal       @db.Decimal(10, 2)
+  tax             Decimal       @db.Decimal(10, 2) @default(0)
+  total           Decimal       @db.Decimal(10, 2)
+  currency        Currency      @default(CRC)
+  status          OrderStatus   @default(PENDING)
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentRef      String? // Stripe/PayPal txn ID or manual ref
+  shippingAddress Json
+  locale          String        @default("es") // customer locale → for invoices and WA messages
+  priceSnapshot   Json? // full cart snapshot at checkout (guards against price changes)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt(sort: Desc)])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  SINPE
+  BANK_TRANSFER
+  CREDIT_CARD
+  PAYPAL
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  variantSku String?
+  nameEn    String // snapshot at order time
+  nameEs    String
+  price     Decimal @db.Decimal(10, 2)
+  quantity  Int
+}
+
+// ── Invoicing ────────────────────────────────────────────────
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique // INV-20260321-001
+  orderId       String?
+  order         Order?        @relation(fields: [orderId], references: [id])
+  customerName  String
+  customerEmail String?
+  items         Json // snapshot of line items
+  subtotal      Decimal       @db.Decimal(10, 2)
+  tax           Decimal       @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  currency      Currency      @default(CRC)
+  status        InvoiceStatus @default(DRAFT)
+  pdfUrl        String?
+  locale        String        @default("es")
+  createdAt     DateTime      @default(now())
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  VOID
+}
+
+// ── Shipping ─────────────────────────────────────────────────
+model ShippingZone {
+  id        String   @id @default(cuid())
+  nameEn    String
+  nameEs    String
+  provinces String[] // Costa Rica provinces covered
+  baseRate  Decimal  @db.Decimal(10, 2)
+  perKgRate Decimal  @db.Decimal(10, 2)
+  freeAbove Decimal? @db.Decimal(10, 2) // free shipping threshold in CRC
+}
+
+// ── Promotions & Discounts ───────────────────────────────────
+model Promotion {
+  id             String         @id @default(cuid())
+  nameEn         String
+  nameEs         String
+  slug           String         @unique
+  type           PromotionType
+  discountValue  Decimal        @db.Decimal(10, 2)
+  minOrderAmount Decimal?       @db.Decimal(10, 2)
+  maxDiscount    Decimal?       @db.Decimal(10, 2)
+  applicableTo   PromotionScope @default(ALL)
+  categoryIds    String[]
+  productIds     String[]
+  startsAt       DateTime
+  endsAt         DateTime
+  isActive       Boolean        @default(true)
+  priority       Int            @default(0)
+  stackable      Boolean        @default(false)
+  bannerImageUrl String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([slug])
+  @@index([startsAt, endsAt])
+  @@index([isActive])
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  BUY_X_GET_Y
+  FREE_SHIPPING
+}
+
+enum PromotionScope {
+  ALL
+  CATEGORY
+  PRODUCT
+}
+
+model Coupon {
+  id                 String        @id @default(cuid())
+  code               String        @unique
+  descriptionEn      String?
+  descriptionEs      String?
+  type               PromotionType
+  discountValue      Decimal       @db.Decimal(10, 2)
+  minOrderAmount     Decimal?      @db.Decimal(10, 2)
+  maxDiscount        Decimal?      @db.Decimal(10, 2)
+  maxUses            Int? // null = unlimited
+  usedCount          Int           @default(0)
+  maxUsesPerCustomer Int?          @default(1)
+  startsAt           DateTime
+  expiresAt          DateTime
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+
+  @@index([code])
+  @@index([isActive, expiresAt])
+}
+
+// ── Price Audit Trail ────────────────────────────────────────
+model PriceChangeLog {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantSku String? // null = base product price
+  oldPrice   Decimal  @db.Decimal(10, 2)
+  newPrice   Decimal  @db.Decimal(10, 2)
+  reason     String? // "AI suggestion", "Bulk reprice", "Manual"
+  changedBy  String // admin user ID
+  createdAt  DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ── Full-Text Search ─────────────────────────────────────────
+// Run via raw migration (prisma/migrations/xxx_add_fts_index/migration.sql):
+// CREATE INDEX product_fts_idx ON "Product" USING GIN (
+//   to_tsvector('english', "nameEn" || ' ' || "descriptionEn") ||
+//   to_tsvector('spanish', "nameEs" || ' ' || "descriptionEs")
+// );

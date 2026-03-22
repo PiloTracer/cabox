@@ -1,0 +1,87 @@
+{
+  "home": {
+    "welcome": "Cabox — Curated Fashion",
+    "tagline": "Premium style for everyday living.",
+    "shopNow": "Shop Collection"
+  },
+  "nav": {
+    "products": "Products",
+    "categories": "Categories",
+    "cart": "Cart",
+    "search": "Search..."
+  },
+  "product": {
+    "addToCart": "Add to cart",
+    "outOfStock": "Out of stock",
+    "saleEndsIn": "Sale ends in",
+    "share": "Share",
+    "buyViaWhatsApp": "Buy via WhatsApp",
+    "relatedProducts": "Related products",
+    "details": "Details"
+  },
+  "cart": {
+    "title": "My Cart",
+    "empty": "Your cart is empty",
+    "continueShopping": "Continue shopping",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "total": "Total",
+    "checkout": "Proceed to checkout",
+    "remove": "Remove",
+    "priceUpdated": "Price updated for {product}",
+    "outOfStockRemoved": "{product} was removed (out of stock)",
+    "couponPlaceholder": "Discount code",
+    "applyCoupon": "Apply",
+    "couponApplied": "Code applied!",
+    "couponInvalid": "Invalid or expired code"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "customerInfo": "Contact information",
+    "shippingAddress": "Shipping address",
+    "paymentMethod": "Payment method",
+    "orderSummary": "Order summary",
+    "placeOrder": "Place order",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email address",
+    "phone": "Phone number",
+    "address": "Address",
+    "city": "City",
+    "province": "Province",
+    "payWithCard": "Credit / Debit card",
+    "payWithPayPal": "PayPal",
+    "payWithSINPE": "SINPE Móvil",
+    "payWithTransfer": "Bank transfer",
+    "payWithCash": "Cash (delivery by agreement)",
+    "sinpeInstructions": "Send {amount} to number {phone} ({name}). Include order number as reference.",
+    "transferInstructions": "Transfer {amount} to IBAN {iban} in the name of {name} ({bank}). Include order number.",
+    "orderConfirmed": "Order confirmed!",
+    "orderNumber": "Order number"
+  },
+  "orders": {
+    "title": "Order status",
+    "status": {
+      "PENDING": "Pending",
+      "CONFIRMED": "Confirmed",
+      "PROCESSING": "Processing",
+      "SHIPPED": "Shipped",
+      "DELIVERED": "Delivered",
+      "CANCELLED": "Cancelled"
+    },
+    "paymentStatus": {
+      "UNPAID": "Unpaid",
+      "PAID": "Paid",
+      "REFUNDED": "Refunded"
+    }
+  },
+  "footer": {
+    "copyright": "© {year} Cabox. All rights reserved.",
+    "contact": "Contact"
+  },
+  "errors": {
+    "notFound": "Page not found",
+    "serverError": "Server error",
+    "goHome": "Go home"
+  }
+}
