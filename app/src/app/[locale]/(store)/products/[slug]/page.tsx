@@ -36,7 +36,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
   const name = locale === 'es' ? product.nameEs : product.nameEn;
   const description = locale === 'es' ? product.descriptionEs : product.descriptionEn;
-  const images = product.images as string[];
+  const images = (product.images as string[] | null) ?? [];
 
   // Total stock
   const stock = product.inventory.reduce((s, r: any) => {
