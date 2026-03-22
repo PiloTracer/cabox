@@ -1,5 +1,5 @@
-import NextAuth from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
+import NextAuth, { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
@@ -8,9 +8,10 @@ const loginSchema = z.object({
   password: z.string().min(6),
 });
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
-    Credentials({
+    CredentialsProvider({
+      name: 'Credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
@@ -21,7 +22,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const { email, password } = parsed.data;
 
-        // Single admin user — credentials stored in env
         if (email !== process.env.ADMIN_EMAIL) return null;
 
         const hash = process.env.ADMIN_PASSWORD_HASH ?? '';
@@ -41,13 +41,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as { role?: string }).role;
+        token.role = (user as typeof user & { role?: string }).role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { role?: string }).role = token.role as string;
+        (session.user as typeof session.user & { role?: string }).role =
+          token.role as string;
       }
       return session;
     },
@@ -62,4 +63,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: 'jwt',
     maxAge: 8 * 60 * 60, // 8 hours
   },
-});
+
+  secret: process.env.NEXTAUTH_SECRET,
+};
+
+export default NextAuth(authOptions);

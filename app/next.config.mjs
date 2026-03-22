@@ -1,5 +1,4 @@
 import createNextIntlPlugin from 'next-intl/plugin';
-import withPWA from '@ducanh2912/next-pwa';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -7,74 +6,35 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig = {
   output: 'standalone',
 
+  // Security headers
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: [
-          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net https://www.paypal.com https://www.sandbox.paypal.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com",
-              "frame-src https://js.stripe.com https://www.paypal.com https://www.sandbox.paypal.com",
-              "connect-src 'self' https://*.supabase.co https://api.stripe.com",
-            ].join('; '),
-          },
         ],
       },
     ];
   },
 
+  // Image optimization
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '*.supabase.co',
-        pathname: '/storage/v1/object/public/**',
-      },
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: '**.googleapis.com' },
     ],
   },
 
+  // Experimental
   experimental: {
-    serverActions: { bodySizeLimit: '10mb' },
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
 };
 
-const pwaConfig = withPWA({
-  dest: 'public',
-  cacheOnFrontEndNav: true,
-  reloadOnOnline: true,
-  disable: process.env.NODE_ENV === 'development',
-  workboxOptions: {
-    disableDevLogs: true,
-    runtimeCaching: [
-      {
-        urlPattern: /^https:\/\/.+\.supabase\.co\/storage\/.*/,
-        handler: 'CacheFirst',
-        options: {
-          cacheName: 'product-images',
-          expiration: { maxEntries: 200, maxAgeSeconds: 604800 },
-        },
-      },
-      {
-        urlPattern: /\/api\/products.*/,
-        handler: 'NetworkFirst',
-        options: {
-          cacheName: 'product-api',
-          expiration: { maxEntries: 100, maxAgeSeconds: 60 },
-        },
-      },
-    ],
-  },
-});
-
-export default withNextIntl(pwaConfig(nextConfig));
+export default withNextIntl(nextConfig);

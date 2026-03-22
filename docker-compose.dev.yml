@@ -10,7 +10,9 @@ services:
       - ./app/src:/app/src
       - ./app/prisma:/app/prisma
       - ./app/public:/app/public
-      - ./app/src/messages:/app/src/messages
+      - ./app/tsconfig.json:/app/tsconfig.json
+      - ./app/next.config.mjs:/app/next.config.mjs
+      - ./app/postcss.config.mjs:/app/postcss.config.mjs
     environment:
       - DATABASE_URL
       - DATABASE_URL_DIRECT
@@ -60,7 +62,7 @@ services:
       - pgbouncer
       - redis
     networks:
-      - ${STORE_NAME:-cabox}_net
+      - cabox_net
     restart: unless-stopped
 
   nginx:
@@ -69,11 +71,11 @@ services:
       dockerfile: Dockerfile
     container_name: ${STORE_NAME:-cabox}_nginx
     ports:
-      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_PORT:-8080}:80"
     depends_on:
       - app
     networks:
-      - ${STORE_NAME:-cabox}_net
+      - cabox_net
     restart: unless-stopped
 
   db:
@@ -86,9 +88,9 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      - pgdata_${STORE_NAME:-cabox}:/var/lib/postgresql/data
+      - cabox_pgdata:/var/lib/postgresql/data
     networks:
-      - ${STORE_NAME:-cabox}_net
+      - cabox_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cabox_user} -d ${POSTGRES_DB:-cabox_dev}"]
@@ -111,7 +113,7 @@ services:
       db:
         condition: service_healthy
     networks:
-      - ${STORE_NAME:-cabox}_net
+      - cabox_net
     restart: unless-stopped
 
   redis:
@@ -121,15 +123,18 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis_${STORE_NAME:-cabox}:/data
+      - cabox_redis:/data
     networks:
-      - ${STORE_NAME:-cabox}_net
+      - cabox_net
     restart: unless-stopped
 
+# Static volume/network names — Compose v2 does not allow variable interpolation
+# in top-level keys. For multi-store isolation use spawn_store.sh which generates
+# a fully self-contained compose file per store with a unique COMPOSE_PROJECT_NAME.
 volumes:
-  pgdata_${STORE_NAME:-cabox}:
-  redis_${STORE_NAME:-cabox}:
+  cabox_pgdata:
+  cabox_redis:
 
 networks:
-  ${STORE_NAME:-cabox}_net:
+  cabox_net:
     driver: bridge

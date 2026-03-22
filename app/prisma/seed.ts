@@ -1,7 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+// Seed always connects directly to PostgreSQL — bypasses PgBouncer
+// (PgBouncer client auth can conflict with SCRAM-SHA-256 in Postgres 16)
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL,
+    },
+  },
+});
 
 async function main() {
   console.log('🌱  Seeding database...');
