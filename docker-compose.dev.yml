@@ -13,6 +13,7 @@ services:
       - ./app/src/messages:/app/src/messages
     environment:
       - DATABASE_URL
+      - DATABASE_URL_DIRECT
       - NEXTAUTH_SECRET
       - NEXTAUTH_URL
       - ADMIN_EMAIL
