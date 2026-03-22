@@ -1,16 +1,17 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
 import '@/app/globals.css';
+import Providers from '@/components/Providers';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: { default: 'Cabox — Curated Fashion', template: '%s | Cabox' },
-  description: 'Curated fashion for the modern lifestyle.',
-  keywords: ['fashion', 'clothing', 'curated', 'cabox', 'moda', 'ropa'],
+  title: { default: 'Cabox — Moda Curada de Costa Rica', template: '%s | Cabox' },
+  description: 'Descubre moda curada con estilo premium para el día a día.',
+  keywords: ['fashion', 'clothing', 'curated', 'cabox', 'moda', 'ropa', 'costa rica'],
   manifest: '/manifest.json',
-  openGraph: { type: 'website', siteName: 'Cabox', title: 'Cabox — Curated Fashion' },
+  openGraph: { type: 'website', siteName: 'Cabox', title: 'Cabox — Moda Curada' },
 };
 
 export const viewport: Viewport = {
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
       </head>
       <body className={`${inter.variable} ${playfair.variable}`}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
