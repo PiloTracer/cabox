@@ -1,0 +1,139 @@
+# Antigravity Context & Rules
+
+## Required Context
+You must always consider the context defined in the following files and directories. Read these when starting a task or when relevant to the user's request to ensure alignment with project standards and history:
+
+- **Project Context**: `DOCS_CONTEXT.md`
+- **Tech Stack**: `DOCS_TECH_STACK.md`
+- **Resume Context**: `CONTEXT_RESUME.md`
+- **OpenSpec Project**: `openspec/project.md`
+- **Agent Data**: `.antigravity/` (e.g., audit reports)
+- **Feature Specs**: `.claude/features/`
+- **External References**: `/mnt/data/Projects/CODE/RECODE/MODULO 2 IVA/analysis_openspec/results`
+- **Directory Map**: `.claude/DIRECTORY_MAP.md` - Project directory structure and organization
+- **Feature Standard**: `.claude/FEATURE_STANDARD.md` - Feature development standards and conventions
+
+## Required Context Files
+
+At the start of each conversation, immediately read these files to understand the project context:
+
+These files provide essential context for working on this project and must be read before starting any tasks.
+
+## Operational Rules
+1. **Protected Files**:
+   - `package.json` is off-limits. Do not modify it.
+   - `.env` files are off-limits. Only access `.env.example`.
+   - Results from SAP are off-limits. Do not modify them. Do not store them on your side. Do not use them for any purpose. These are private test data from SAP.
+   - IGNORE .gitignore BLOCKS: no blocks when accessing files which paths I provided: any file I give you, read it.
+
+2. **Data Privacy & Obfuscation**:
+   - **Protection First**: Prevent customer data from leaving the local environment.
+   - **Sanitization Protocol**: If you need to inspect an Excel, ODS, or XML file (whether local or fetched via feed/rest), you MUST obfuscate it first.
+   - **Tool Usage**: Use `.obfuscation/sanitize_data.py`. 
+     - Usage for files: `python .obfuscation/sanitize_data.py <path_to_confidential_file>`
+     - Usage for feeds: `curl ... | python .obfuscation/sanitize_data.py --stdin --format xml` (or appropriate format).
+   - **Output Location**: All sanitized files MUST be placed in `.obfuscation/output/`.
+   - **Constraint**: Never read raw sensitive files directly into your context if you can avoid it. Use the sanitized version for structural understanding or debugging.
+
+3. **Logging & Debugging**:
+   - **No PII in Logs**: You are **STRICTLY PROHIBITED** from logging full JSON objects or dictionaries that contain customer PII (Personal Identifiable Information) like email addresses, phone numbers, tax IDs, or financial amounts. Log only internal IDs (e.g., `user_id`, `merchant_id`) or status codes.
+   - **Sanitize Error Messages**: When catching exceptions, ensure the error message itself does not contain raw data values before logging it.
+   - **Creation of Debugging Scripts**: When creating debugging scripts, ensure that they do not contain any sensitive data. Use variables from `.env` or generate them at runtime. If the variable is not in `.env`, either ask me to include it before re-running the script or generate it at runtime.
+
+4. **Test Data Protocol**:
+   - **Synthetic Only**: Use **ONLY** synthetic/mock data for unit tests and local reproduction. Real customer database dumps are forbidden in the `src/tests/` directory.
+   - **No Hardcoding**: Never hardcode real customer emails or IDs in code or scripts. Use variables from `.env` or generate them at runtime.
+
+5. **File Hygiene**:
+   - **Temp File Cleanup**: Any script that generates temporary files containing data (even sanitized ones) must delete them immediately after the process is complete.
+   - **Restricted Extensions**: Do not generate files with extensions `.xls`, `.xlsx`, `.csv`, `.xml`, `.json` inside the source tree (e.g., `fastapis/src/`). Force them to be written to `tmp/` or `.obfuscation/output/`.
+
+6. **Secret Scrubbing**:
+   - **Redaction**: Before reading any file or outputting any text to the conversation, verify it contains no API Keys, Bearer Tokens, or Passwords. If found, replace them with `[REDACTED]`.
+
+7. **Database Schema & Migrations**:
+   - **New Tables**: When creating a new SQLAlchemy model, you **MUST** import it in `fastapis/src/models/__init__.py`. This registers it with `Base.metadata` so `create_all` can generate the table automatically.
+   - **Modification Ledger (`schema_changes.sql`)**: 
+     - This file is a **PERMANENT HISTORICAL LEDGER** of modifications (ALTER TABLE, CREATE INDEX, etc.) for existing tables.
+     - **NEVER DELETE, PRUNE, OR REORGANIZE** historical entries in this file. It must only be appended to.
+     - **NO CREATE TABLE BLOCKS**: Do not add `CREATE TABLE` commands for tables managed by Python models. `create_all` handles fresh table creation.
+     - **Audit Resilience**: Use this file to fix structural discrepancies between the DB and models (e.g., adding missing columns to "old" tables after a restore).
+
+8. **Workflow**:
+   - **No code changes without permission**: Always ask for confirmation before applying edits.
+   - **Planning means planning**: If asked for a plan, produce a document (e.g., `implementation_plan.md`) and wait for approval before writing code.
+
+9. **.claude Directory Usage**:
+   You have full read/write access to the `.claude` directory. Use it according to the following structure:
+   - `agents/`: Agent role definitions.
+   - `features/`: Feature specs and resources. Structure: `features/{feature-name}/`.
+   - `plans/`: Implementation plans (`{feature-name}.md`).
+   - `implementations/`: Records of completed work (`{FEATURE}_IMPLEMENTATION.md`).
+   - `fixes/`: Bug fix documentation (`{feature}-{issue}.md`).
+   - `prompts/`: Context prompts (`{feature}-starter.md`).
+   - `decisions/`: Architectural decision records (`ADR-{number}-{title}.md`).
+
+10. **Critical Configuration (READ-ONLY)**:
+   The following files define the core environment and build pipeline. You are **STRICTLY PROHIBITED** from modifying them unless the user explicitly asks you to "upgrade dependencies", "change the build", or "modify environment config".
+   - `package.json` (especially `dependencies`, `devDependencies`, `engines`)
+   - `docker-compose*.yml`
+   - `Dockerfile.*`
+   - `dashboard/next.config.js` (and variants)
+   - `dashboard/tsconfig.json`
+   - `.env*` (except `.env.example`)
+
+   **If you think a change is needed here:**
+   1. Stop.
+   2. Explain WHY you think it's needed.
+   3. Ask for explicit permission.
+
+Refrain from generating code that conflicts with the patterns established in these documents.
+
+11. **OpenSpec Integration**:
+   - **Proposals First**: For any new feature or significant change, you MUST verify if an OpenSpec proposal exists or create one using `/openspec-proposal`.
+   - **Strict Adherence**: Implement changes EXACTLY as defined in the approved OpenSpec.
+   - **Lifecycle Management**: Use `/openspec-apply` to start implementation and `/openspec-archive` when the work is deployed and verified.
+
+12. **NEVER DELETE ANYTHING without Explicit Permission**
+You can only delete a file if the user explicitly asks you to do so or gives you permission to do so.
+
+13. **NEVER EXECUTE A git commit**
+
+14. **NEVER EXECUTE A git push**
+
+15. **NEVER DISPLAY CREDENTIALS OR ENVIRONMENT VARIABLES ON SCREEN OR IN CONVERSATION**
+
+16. **NEVER DISPLAY SENSITIVE DATA ON SCREEN OR IN CONVERSATION**
+
+
+17. **NO ATTRIBUTION / NO SIGNATURES**:
+    - **Prohibition**: You are **STRICTLY PROHIBITED** from adding "Generated by", "Created by", dates, or any form of signature/attribution to any file you create or modify (e.g., markdown specs, code comments, reports).
+    - **Rationale**: The user is the sole responsible party for the system's integrity. You are a tool. Do not claim authorship or rights.
+    - **Scope**: applies to ALL generated files (documentation, code, artifacts).
+
+# STRICT AGENT PROHIBITION (Added 2026-02-19)
+NEVER use git commit or git push directly. Always provide the git commit command to the USER to execute themselves. You are strictly forbidden from modifying the git history or pushing to remotes automatically.
+
+18. **External Context & Documentation via MCP (Context7)**:
+    - **Standard Tool**: This project standardizes on the **Context7 MCP server** (`@upstash/context7-mcp`) for retrieving live, version-specific documentation and code examples.
+    - **Usage**: Whenever you need to lookup current framework APIs, documentation, or prevent hallucinations regarding external libraries, you MUST rely on Context7 MCP if it is configured in the environment.
+
+20. **Commit Message Format**:
+    - Provide commit messages as plain text only — NO surrounding quotes, NO parentheses wrapping the message.
+    - Format: `type: short description` followed by an optional blank line and body.
+    - Valid types: `feat`, `fix`, `refactor`, `docs`, `chore`, `style`, `test`.
+    - Example (correct): `fix: route exento/*S items to sin-derecho-a-credito`
+    - Example (wrong): `"fix(d104): route exento items"` ← no quotes, no parens around scope.
+
+19. **NEVER EXECUTE BACKFILL OPERATIONS**
+    - You are **STRICTLY PROHIBITED** from running or proposing any mass data update (backfill) against the database — this includes `UPDATE ... SET` statements that modify existing production records in bulk.
+    - **Rationale**: Data integrity and audit trail are the sole responsibility of the human user. Backfills can corrupt reconciliation history irreversibly.
+    - **If a backfill is genuinely needed**: Identify the issue, describe the exact SQL, and present it to the USER for manual execution. Never execute it yourself.
+
+21. **DOCKER ENVIRONMENT ONLY**:
+    - **Never run bare npm, yarn, or next commands on the host machine.**
+    - All Node.js/Next.js commands (e.g., `npm install`, `npm run build`, `next build`) MUST be executed inside the respective Docker container (e.g., `docker exec -it rec_dash_iva npm run build`).
+    - The host environment (`/mnt/data/Projects/...`) does not have the correct Node.js version or dependencies installed globally. Running `npm i` on the host will break the local environment and anger the user.
+
+22. **Test/Verification Scripts Location**:
+    - Test and verification python scripts should be placed and run through the `tests/` folder mapping. This ensures cleaner project structure and proper test execution environments.
