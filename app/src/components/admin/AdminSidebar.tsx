@@ -9,6 +9,11 @@ import {
   Package,
   Tag,
   Truck,
+  Users,
+  Boxes,
+  Percent,
+  Ticket,
+  BarChart2,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -18,9 +23,15 @@ const links = [
   { href: '/admin/products', label: 'Productos', icon: ShoppingBag },
   { href: '/admin/orders', label: 'Pedidos', icon: Package },
   { href: '/admin/categories', label: 'Categorías', icon: Tag },
+  { href: '/admin/inventory', label: 'Inventario', icon: Boxes },
+  { href: '/admin/customers', label: 'Clientes', icon: Users },
   { href: '/admin/shipping', label: 'Envíos', icon: Truck },
+  { href: '/admin/promotions', label: 'Promociones', icon: Percent },
+  { href: '/admin/coupons', label: 'Cupones', icon: Ticket },
+  { href: '/admin/reports', label: 'Reportes', icon: BarChart2 },
   { href: '/admin/settings', label: 'Configuración', icon: Settings },
 ];
+
 
 export default function AdminSidebar() {
   const pathname = usePathname();

@@ -2,6 +2,46 @@
 
 > These rules apply to ALL AI agents working on this project.
 
+---
+
+## 👑 KING RULE — Mindful, Truthful Senior Developer Mindset
+
+> **ACT AS A MINDFUL, TRUTHFUL SENIOR SOFTWARE DEVELOPER AND ARCHITECT.**
+
+You are not a code monkey. You are a disciplined engineering professional. This means:
+
+- **Think before you write.** Understand the full context before touching any file.
+- **Be truthful.** Never guess at API shapes, Prisma models, or library signatures — verify first.
+- **Be honest about uncertainty.** "I don't know, let me check" is always better than a confident mistake.
+- **Slow down to go fast.** One correct implementation beats three broken ones.
+- **Own the architecture.** Every file you touch must leave the codebase better than you found it.
+- **Stay grounded in reality.** Build what actually works in production — no theoretical elegance that fails in practice.
+- **Functionality first.** Every feature must serve a real user need; validate against real-life usage patterns.
+- **Be user-friendly.** The end user's experience is the final measure of quality — confusing UX is a bug.
+- **Apply the highest standards in development and UX.** Premium feel, intuitive flows, zero rough edges.
+- **SEO, AI-readiness, and marketing are first-class citizens.** Every public page must have correct meta tags, semantic HTML, structured data, fast load times, and copy that converts.
+
+---
+
+## 👑 KING RULE — Software Quality Commandments
+
+> **SOFTWARE PRODUCED MUST BE CONSISTENT, SCALABLE, WELL-ARCHITECTED,
+> EASY TO MAINTAIN, AND EASY TO UNDERSTAND — BY BOTH AI AGENTS AND HUMAN DEVELOPERS.**
+
+| Attribute              | Non-Negotiable Standard                                                         |
+|------------------------|---------------------------------------------------------------------------------|
+| **Consistent**         | Same patterns, same naming, same style across every file and module             |
+| **Scalable**           | Designed to grow without rewrites — clean separation of concerns                |
+| **Well-Architected**   | Clear layers (UI → API → lib → DB), no logic bleeding across boundaries         |
+| **Easy to Maintain**   | Any developer can open a file and understand it within 5 minutes                |
+| **AI-Agent Friendly**  | Self-documenting, no magic constants, no hidden side-effects                    |
+| **Human-Readable**     | Descriptive names, no abbreviation soup, comments explaining *why* (not *what*) |
+
+> Violations of these attributes are **bugs**, not style preferences. Treat them as such.
+
+---
+
+
 ## Required Context Files
 At the start of each session, read these files in order:
 1. `.ai/context/CONTEXT.md` — Project identity & tech stack
@@ -112,3 +152,16 @@ The following files must NOT be modified unless user explicitly requests it:
 - `.env*` (except `.env.example`)
 
 If a change is needed: Stop → Explain WHY → Ask for permission.
+
+### 22. CENTRALIZED LOGIC — ZERO TOLERANCE FOR DUPLICATION
+
+> **CONSISTENCY IS KEY. SPAGHETTI CODE IS NOT ACCEPTABLE.**
+
+- **MULTIPLE CODE-BLOCKS/FUNCTIONS FOR THE SAME TASK ARE FORBIDDEN.**
+- Every utility function must have a **single source of truth** in `src/lib/`. If the same logic appears in two files, it is wrong.
+- **Required centralized modules** (create these, then import everywhere):
+  - `lib/format.ts` — ALL formatting: `formatCRC()`, `formatUSD()`, `formatDate()`, `formatDateTime()`
+  - `lib/auth-guard.ts` — ALL API auth: `requireAdmin()` — never inline `getServerSession` in route files
+  - `lib/pricing.ts` — coupon validation, discount calculation, shipping cost calc
+  - `lib/db/` — complex Prisma query helpers (e.g. `getOrderWithDetails()`, `getProductWithStock()`)
+- **Enforcement**: Before writing a formatting/calculation/guard function, search the codebase. If it already exists in `lib/`, import it. If it doesn't, add it to `lib/` and import it.

@@ -12,6 +12,22 @@
 
 ---
 
+## 0. Code Quality Commandments
+
+> [!CAUTION]
+> **CONSISTENCY IS KEY — THESE RULES ARE NON-NEGOTIABLE**
+>
+> - **MULTIPLE CODE-BLOCKS/FUNCTIONS FOR THE SAME TASK ARE FORBIDDEN.**
+> - **USE CENTRALIZED LOGIC**: shared utilities live in `src/lib/`. Never duplicate formatting helpers, DB query patterns, or business logic across files.
+> - **SPAGHETTI CODE IS UNACCEPTABLE**: every feature must have a single source of truth. If you write the same logic twice, you are doing it wrong.
+> - Examples of required centralization:
+>   - Currency formatting → `lib/format.ts` → `formatCRC(n)`
+>   - Prisma query helpers → `lib/db/orders.ts`, `lib/db/products.ts`, etc.
+>   - Auth guard → single `requireAdmin()` function in `lib/auth-guard.ts`
+>   - Price calculation, coupon validation → `lib/pricing.ts`
+
+---
+
 ## 1. Executive Summary
 
 Build a production-ready, bilingual (EN/ES) Progressive Web App for **Cabox — Curated Fashion**. The platform serves two audiences through two distinct interfaces:

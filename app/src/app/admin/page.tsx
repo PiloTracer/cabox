@@ -2,7 +2,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { ShoppingBag, Package, Users, TrendingUp } from 'lucide-react';
+import { ShoppingBag, Package, TrendingUp } from 'lucide-react';
+import { formatCRC, formatDate } from '@/lib/format';
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
@@ -83,9 +84,9 @@ export default async function AdminDashboard() {
                     </td>
                     <td><span className={`badge badge-${statusBadge(order.status)}`}>{order.status}</span></td>
                     <td><span className={`badge badge-${payBadge(order.paymentStatus)}`}>{order.paymentStatus}</span></td>
-                    <td className="price">₡{Number(order.total).toLocaleString('es-CR')}</td>
+                    <td className="price">{formatCRC(order.total)}</td>
                     <td style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                      {new Date(order.createdAt).toLocaleDateString('es-CR')}
+                      {formatDate(order.createdAt)}
                     </td>
                   </tr>
                 ))}

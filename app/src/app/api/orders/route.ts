@@ -3,37 +3,42 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const orderSchema = z.object({
-  customerEmail: z.string().email(),
   customerName: z.string().min(1),
-  customerPhone: z.string().optional(),
-  shippingAddress: z.record(z.string()),
-  paymentMethod: z.enum(['STRIPE', 'PAYPAL', 'SINPE', 'TRANSFER', 'CASH']),
-  currency: z.string().default('CRC'),
+  customerEmail: z.string().email().optional(),
+  customerPhone: z.string().min(1),
+  shippingAddress: z.object({
+    line1: z.string(),
+    line2: z.string().optional(),
+    city: z.string(),
+    province: z.string(),
+    postalCode: z.string().optional(),
+    country: z.string().default('CR'),
+  }),
+  paymentMethod: z.enum(['CASH', 'SINPE', 'BANK_TRANSFER', 'CREDIT_CARD', 'PAYPAL']),
+  currency: z.enum(['CRC', 'USD']).default('CRC'),
+  notes: z.string().optional(),
+  couponCode: z.string().optional(),
   items: z.array(z.object({
     productId: z.string(),
-    variantId: z.string().nullable().optional(),
-    sku: z.string(),
+    variantSku: z.string().nullable().optional(),
     nameEs: z.string(),
     nameEn: z.string(),
     quantity: z.number().int().positive(),
-    unitPrice: z.number().positive(),
-    totalPrice: z.number().positive(),
+    price: z.number().positive(),
   })),
   subtotal: z.number(),
-  shipping: z.number().default(0),
+  discountAmount: z.number().default(0),
+  shippingCost: z.number().default(0),
   tax: z.number().default(0),
-  discount: z.number().default(0),
   total: z.number(),
 });
 
-// Generate a human-readable order number
 function generateOrderNumber(): string {
-  const prefix = 'CBX';
   const date = new Date();
   const yy = String(date.getFullYear()).slice(-2);
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const rand = Math.floor(Math.random() * 9000) + 1000;
-  return `${prefix}${yy}${mm}-${rand}`;
+  return `CBX${yy}${mm}-${rand}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -49,47 +54,79 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
 
-  // Ensure order number is unique
+  // Upsert customer by phone
+  const customer = await prisma.customer.upsert({
+    where: { phone: data.customerPhone },
+    update: {
+      name: data.customerName,
+      email: data.customerEmail ?? undefined,
+    },
+    create: {
+      name: data.customerName,
+      email: data.customerEmail ?? null,
+      phone: data.customerPhone,
+    },
+  });
+
+  // Ensure unique order number
   let orderNumber = generateOrderNumber();
-  let attempts = 0;
-  while (attempts < 5) {
+  for (let i = 0; i < 5; i++) {
     const exists = await prisma.order.findUnique({ where: { orderNumber } });
     if (!exists) break;
     orderNumber = generateOrderNumber();
-    attempts++;
   }
 
   const order = await prisma.order.create({
     data: {
       orderNumber,
+      customerId: customer.id,
       status: 'PENDING',
-      paymentStatus: 'UNPAID',
+      paymentStatus: 'PENDING',
       paymentMethod: data.paymentMethod,
       currency: data.currency,
       subtotal: data.subtotal,
-      shipping: data.shipping,
+      discountAmount: data.discountAmount,
+      couponCode: data.couponCode ?? null,
+      shippingCost: data.shippingCost,
       tax: data.tax,
-      discount: data.discount,
       total: data.total,
-      customerEmail: data.customerEmail,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone ?? null,
       shippingAddress: data.shippingAddress,
+      notes: data.notes ?? null,
+      locale: 'es',
       items: {
         create: data.items.map((item) => ({
           productId: item.productId,
-          variantId: item.variantId ?? null,
-          sku: item.sku,
+          variantSku: item.variantSku ?? null,
           nameEs: item.nameEs,
           nameEn: item.nameEn,
           quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.totalPrice,
+          price: item.price,
         })),
       },
     },
-    include: { items: true },
+    include: { items: true, customer: true },
   });
 
   return NextResponse.json(order, { status: 201 });
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get('status') ?? undefined;
+  const page = parseInt(searchParams.get('page') ?? '1', 10);
+  const PAGE_SIZE = 20;
+
+  const where = status ? { status } : {};
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: { customer: true, items: { take: 1 } },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return NextResponse.json({ orders, total, page, pages: Math.ceil(total / PAGE_SIZE) });
 }

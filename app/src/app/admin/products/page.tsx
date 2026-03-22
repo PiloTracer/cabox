@@ -1,15 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatCRC } from '@/lib/format';
 
 export default async function AdminProductsPage() {
   const products = await prisma.product.findMany({
     include: { category: true },
     orderBy: { createdAt: 'desc' },
   });
-
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC', maximumFractionDigits: 0 }).format(n);
 
   return (
     <div className="admin-page">
@@ -52,7 +50,7 @@ export default async function AdminProductsPage() {
                     </div>
                   </td>
                   <td style={{ color: 'var(--color-text-muted)' }}>{p.category?.nameEs ?? '—'}</td>
-                  <td className="price">{fmt(Number(p.price))}</td>
+                  <td className="price">{formatCRC(p.price)}</td>
                   <td>
                     <span className={`badge badge-${p.status === 'ACTIVE' ? 'success' : p.status === 'DRAFT' ? 'warning' : 'muted'}`}>
                       {p.status}
