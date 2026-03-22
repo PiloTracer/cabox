@@ -19,7 +19,7 @@
 - **Payments**: Stripe (cards), PayPal SDK, manual (SINPE, Bank Transfer, Cash)
 - **AI**: Google Cloud Vision + Perplexity API (sonar-pro) + Google Custom Search Images
 - **WhatsApp**: Cloud API (outbound notifications) + `wa.me` links (inbound)
-- **Deploy**: Vercel + Supabase
+- **Deploy**: Docker (multi-stage Dockerfile + docker-compose) + PostgreSQL + Redis + Nginx
 - **State**: Zustand (cart), React Hook Form + Zod (forms)
 - **Charts**: Recharts via shadcn/ui `chart` component
 - **PDF**: `@react-pdf/renderer` for invoice generation
@@ -46,4 +46,4 @@
 ## Development Status
 - **Current Phase**: Architecture & Strategic Planning
 - **Active Plan**: `.ai/plans/20260321_pwa_ecommerce_plan.md`
-- **Next Step**: Await plan approval → Phase 1 scaffolding
+- **Next Step**: Await plan approval → Phase 1 Docker scaffolding

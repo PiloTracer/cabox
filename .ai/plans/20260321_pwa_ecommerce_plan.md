@@ -174,14 +174,150 @@ The logo `tmp/cabox.jpeg` establishes the visual identity:
   - Template messages: order confirmation, payment received, shipped, delivered.
   - Requires Meta Business verification (1–3 business days).
 
-### 3.11 Deployment Target: Vercel + Supabase
+### 3.11 Deployment: Docker-Centric Architecture
 
-| Service | Layer | Free Tier |
-|---------|-------|-----------|
-| **Vercel** | Frontend + API routes + Edge middleware | 100GB bandwidth, serverless functions |
-| **Supabase** | PostgreSQL + Auth + Storage + Real-time | 500MB DB, 1GB storage, 50K auth users |
-| **Stripe** | Card payments | 3.4% + $0.30 per transaction |
-| **PayPal** | PayPal payments | 3.49% + $0.49 per transaction |
+The entire project is 100% containerized. Every service runs inside Docker — no local Node.js, PostgreSQL, or Redis installations required.
+
+**Convention: Environment-Suffixed Files**
+
+All Docker-related files carry an environment suffix. Development files are created first; production files are added when needed:
+
+| File | Environment | Purpose |
+|------|-------------|---------|
+| `Dockerfile.dev` | Development | Node.js + dev server with hot-reload |
+| `Dockerfile.prd` | Production | Multi-stage standalone build (~120MB) |
+| `docker-compose.dev.yml` | Development | app + postgres + redis (volume-mounted) |
+| `docker-compose.prd.yml` | Production | app + postgres + redis + nginx (SSL) |
+| `.env.dev` | Development | All env vars for local development |
+| `.env.prd` | Production | All env vars for production (added later) |
+| `nginx/default.dev.conf` | Development | Simple proxy (no SSL) |
+| `nginx/default.prd.conf` | Production | Reverse proxy with SSL termination |
+
+#### Development Stack (`docker-compose.dev.yml`)
+
+| Service | Image | Default Port | Purpose |
+|---------|-------|------|---------|
+| `app` | Custom (`Dockerfile.dev`) | `3000` | Next.js dev server with hot-reload (volume-mounted `src/`) |
+| `db` | `postgres:16-alpine` | `5432` | PostgreSQL database |
+| `redis` | `redis:7-alpine` | `6379` | Rate limiting |
+
+#### Multi-Stage Dockerfile (`Dockerfile.dev`)
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY prisma ./prisma
+RUN npx prisma generate
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+```
+
+#### Production Dockerfile (`Dockerfile.prd` — added when needed)
+
+```dockerfile
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --only=production
+
+# Stage 2: Build
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npx prisma generate
+RUN npm run build
+
+# Stage 3: Production
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+#### Multi-Store Spawning Architecture
+
+Multiple stores can run on the **same server** as isolated Docker stacks. Each store gets its own stack name, ports, database, and network.
+
+**How it works**: A `spawn_store.sh` script generates a store-specific `.env.dev` from a template, assigning unique ports:
+
+```bash
+#!/bin/bash
+# Usage: ./spawn_store.sh <store_name> <app_port> <db_port> <redis_port>
+# Example: ./spawn_store.sh cabox 3000 5432 6379
+#          ./spawn_store.sh boutique 3100 5433 6380
+#          ./spawn_store.sh streetwear 3200 5434 6381
+
+STORE_NAME=$1
+APP_PORT=${2:-3000}
+DB_PORT=${3:-5432}
+REDIS_PORT=${4:-6379}
+
+# Generate store-specific env from template
+cp templates/env.dev.template .env.dev
+sed -i "s/{{STORE_NAME}}/$STORE_NAME/g" .env.dev
+sed -i "s/{{APP_PORT}}/$APP_PORT/g" .env.dev
+sed -i "s/{{DB_PORT}}/$DB_PORT/g" .env.dev
+sed -i "s/{{REDIS_PORT}}/$REDIS_PORT/g" .env.dev
+
+# Launch with unique stack name
+COMPOSE_PROJECT_NAME=$STORE_NAME docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
+
+echo "✅ Store '$STORE_NAME' running at http://localhost:$APP_PORT"
+```
+
+**Stack isolation**:
+
+| Store | `COMPOSE_PROJECT_NAME` | App Port | DB Port | Redis Port | Network |
+|-------|----------------------|----------|---------|------------|----------|
+| `cabox` | `cabox` | `3000` | `5432` | `6379` | `cabox_net` |
+| `boutique` | `boutique` | `3100` | `5433` | `6380` | `boutique_net` |
+| `streetwear` | `streetwear` | `3200` | `5434` | `6381` | `streetwear_net` |
+
+Each store has:
+- Its own PostgreSQL database (isolated data volume: `pgdata_<store_name>`)
+- Its own Redis instance (isolated)
+- Its own Docker network (no cross-store communication)
+- Single codebase — customization via environment injection only
+
+**Key design decisions**:
+- Uses Next.js `output: 'standalone'` in `next.config.mjs` for production — produces a self-contained `server.js` (~15MB).
+- Development uses volume mounts for `src/`, `prisma/`, and `public/` for instant hot-reload.
+- Prisma migrations run via `docker compose exec app npx prisma migrate deploy`.
+- All ports are parameterized via `.env.dev` — no hardcoded values in compose files.
+
+#### Docker Commands (Daily Workflow)
+
+```bash
+# Start development environment
+docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
+
+# View logs
+docker compose -f docker-compose.dev.yml logs -f app
+
+# Run Prisma migrations
+docker compose -f docker-compose.dev.yml exec app npx prisma migrate dev
+
+# Open Prisma Studio
+docker compose -f docker-compose.dev.yml exec app npx prisma studio
+
+# Run tests
+docker compose -f docker-compose.dev.yml exec app npm run test
+
+# Stop stack
+docker compose -f docker-compose.dev.yml --env-file .env.dev down
+
+# Spawn additional store on same server
+./spawn_store.sh boutique 3100 5433 6380
+```
 
 ### 3.12 Complete `package.json` Dependencies
 
@@ -247,6 +383,23 @@ The logo `tmp/cabox.jpeg` establishes the visual identity:
     "@playwright/test": "^1.49.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "docker:dev": "docker compose -f docker-compose.dev.yml --env-file .env.dev up -d",
+    "docker:dev:down": "docker compose -f docker-compose.dev.yml --env-file .env.dev down",
+    "docker:logs": "docker compose -f docker-compose.dev.yml logs -f app",
+    "docker:prd": "docker compose -f docker-compose.prd.yml --env-file .env.prd up -d --build",
+    "docker:prd:down": "docker compose -f docker-compose.prd.yml --env-file .env.prd down"
   }
 }
 ```
@@ -568,7 +721,16 @@ cabox/
 │   └── plans/
 │       └── 20260321_pwa_ecommerce_plan.md   # This file
 ├── CONTEXT.md
-├── next.config.mjs
+├── LICENSE
+├── Dockerfile.dev                           # Dev: Node.js + hot-reload
+├── docker-compose.dev.yml                   # Dev: app + postgres + redis
+├── .env.dev                                 # Dev environment variables
+├── spawn_store.sh                           # Spawn additional store stacks
+├── templates/
+│   └── env.dev.template                     # Template for spawning new stores
+├── nginx/
+│   └── default.dev.conf                     # Nginx dev config (no SSL)
+├── next.config.mjs                          # output: 'standalone' for Docker
 ├── tailwind.config.ts
 ├── prisma/
 │   ├── schema.prisma
@@ -1131,17 +1293,26 @@ Charts via `recharts` library.
 | 32 | **No security headers** | CSP, HSTS, X-Frame-Options, Referrer-Policy configured in `next.config.mjs` (§13.4) |
 | 33 | **No caching strategy** | ISR per page type (30s-3600s) + client-side SWR for real-time data (§13.5) |
 | 34 | **No backup strategy** | Supabase daily snapshots + PITR + pre-migration `pg_dump` policy (§13.6) |
+| 35 | **Not containerized** | Full Docker-centric: env-suffixed files (`.dev`/`.prd`), multi-store spawning via `spawn_store.sh` (§3.11) |
 
 ---
 
 ## 10. Phased Development Plan
 
-### Phase 1 — Scaffolding & Design System (Days 1–2)
-- [ ] `npx create-next-app@latest ./ --typescript --tailwind --app --src-dir`
+### Phase 1 — Docker Scaffolding & Design System (Days 1–2)
+- [ ] Create `Dockerfile.dev` (Node.js + hot-reload dev server)
+- [ ] Create `docker-compose.dev.yml` (Next.js app + PostgreSQL 16 + Redis 7, parameterized ports)
+- [ ] Create `.env.dev` with all environment variables
+- [ ] Create `templates/env.dev.template` for multi-store spawning
+- [ ] Create `spawn_store.sh` (spawn new store in 1 command)
+- [ ] Create `nginx/default.dev.conf` (simple reverse proxy)
+- [ ] `docker compose -f docker-compose.dev.yml --env-file .env.dev up -d` — verify stack boots
+- [ ] `npx create-next-app` inside container with `output: 'standalone'` in `next.config.mjs`
 - [ ] Configure PWA (`@ducanh2912/next-pwa`, manifest, icons from logo)
 - [ ] Set up Tailwind with brand tokens from §2
 - [ ] Configure `next-intl` with `/en` and `/es` routing
 - [ ] Initialize Prisma with full schema from §4
+- [ ] `docker compose -f docker-compose.dev.yml exec app npx prisma migrate dev` — verify schema
 - [ ] Create seed script with sample categories + 5 demo products
 - [ ] Build shared UI components (`Button`, `Input`, `Card`, `Badge`, `Modal`, `Toast`)
 - [ ] Create `LanguageSwitcher` component
@@ -1201,14 +1372,20 @@ Charts via `recharts` library.
 - [ ] Invoice list + preview + PDF download
 - [ ] Reports page with 6 chart panels (recharts)
 
-### Phase 7 — Polish & Launch (Days 19–20)
+### Phase 7 — Polish & Launch (Days 19–21)
 - [ ] Lighthouse PWA audit (target >90 on all categories)
-- [ ] SEO: meta tags, Open Graph, structured data (Product schema)
+- [ ] SEO: meta tags, Open Graph, `hreflang`, structured data (Product schema)
 - [ ] Responsive design audit (mobile, tablet, desktop)
 - [ ] Error boundaries and loading states on all pages
 - [ ] 404 and error pages (bilingual)
-- [ ] Deployment to Vercel + Supabase production setup
-- [ ] Domain configuration and SSL
+- [ ] **Create `Dockerfile.prd`** (multi-stage standalone production build)
+- [ ] **Create `docker-compose.prd.yml`** (app + postgres + redis + nginx with SSL)
+- [ ] **Create `.env.prd`** from `.env.dev` with production values
+- [ ] **Create `nginx/default.prd.conf`** (reverse proxy with Let's Encrypt SSL)
+- [ ] `docker compose -f docker-compose.prd.yml --env-file .env.prd up -d --build` — verify
+- [ ] Run production smoke tests (E2E suite against production container)
+- [ ] Database backup policy verification (`pg_dump` dry run)
+- [ ] Test multi-store spawning: `./spawn_store.sh teststore 3100 5433 6380`
 
 ---
 
