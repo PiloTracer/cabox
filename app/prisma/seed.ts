@@ -7,18 +7,26 @@ async function main() {
   console.log('🌱  Seeding database...');
 
   // ── Admin User ───────────────────────────────────────────
-  const passwordHash = await bcrypt.hash('cabox2026', 12);
+  const seedPassword = process.env.ADMIN_SEED_PASSWORD;
+  if (!seedPassword) {
+    throw new Error(
+      'ADMIN_SEED_PASSWORD env var is required for seeding. ' +
+      'Add it to .env.dev (min 12 chars). It will be hashed — never stored plaintext.'
+    );
+  }
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@cabox.store';
   await prisma.user.upsert({
-    where: { email: 'admin@cabox.store' },
+    where: { email: adminEmail },
     update: {},
     create: {
-      email: 'admin@cabox.store',
+      email: adminEmail,
       passwordHash,
       name: 'Admin',
       role: 'ADMIN',
     },
   });
-  console.log('  ✅  Admin user created (admin@cabox.store / cabox2026)');
+  console.log(`  ✅  Admin user created (${adminEmail})`);
 
   // ── Categories ───────────────────────────────────────────
   const womenCategory = await prisma.category.upsert({
@@ -162,8 +170,8 @@ async function main() {
   console.log('  ✅  Shipping zones created (GAM, Pacífico, Caribe)');
 
   console.log('\n✨  Seed complete!');
-  console.log('    Login: admin@cabox.store / cabox2026');
-  console.log('    ⚠️  Change the admin password after first login!\n');
+  console.log(`    Login: ${process.env.ADMIN_EMAIL ?? 'admin@cabox.store'} / [ADMIN_SEED_PASSWORD from .env.dev]`);
+  console.log('    ⚠️  Change the admin password immediately after first login!\n');
 }
 
 main()
