@@ -159,6 +159,17 @@ The logo `tmp/cabox.jpeg` establishes the visual identity:
 | **Bank Transfer** | Manual | Display account details; admin marks as paid |
 | **Cash** | Manual | In-person; admin marks as paid on delivery |
 
+> [!IMPORTANT]
+> **Manual Payment Credentials (PLACEHOLDER — fill before Phase 3)**
+> 
+> | Field | Placeholder | Notes |
+> |-------|-------------|-------|
+> | SINPE number | `SINPE_PHONE_NUMBER=CR-XXXX-XXXX` | The phone number registered for SINPE Móvil |
+> | Account holder name | `SINPE_ACCOUNT_NAME="YOUR NAME HERE"` | Displayed on checkout for customer reference |
+> | Bank name | `BANK_NAME="YOUR BANK HERE"` | e.g. "Banco Nacional", "BAC" |
+> | IBAN | `BANK_IBAN="CR00 0000 0000 0000 0000 00"` | Full IBAN for wire transfers |
+> | Bank account holder | `BANK_ACCOUNT_NAME="YOUR NAME HERE"` | Must match ID exactly |
+
 ### 3.9 AI & Research APIs
 
 | API | Purpose | Cost Model | Rate Limits |
@@ -172,7 +183,7 @@ The logo `tmp/cabox.jpeg` establishes the visual identity:
 - **Customer → Store**: Simple `wa.me/{phone}?text={encoded cart summary}` link (zero API needed).
 - **Store → Customer**: Via Meta's WhatsApp Cloud API for order notifications:
   - Template messages: order confirmation, payment received, shipped, delivered.
-  - Requires Meta Business verification (1–3 business days).
+  - **Individual accounts** can use the API immediately; unverified limit is **250 conversations/day**. Business Verification (tax ID or incorporation doc) unlocks higher tiers (1K → 10K → 100K).
 
 ### 3.11 Deployment: Docker-Centric Architecture
 
@@ -718,9 +729,14 @@ model PriceChangeLog {
 ```
 cabox/
 ├── .ai/
+│   ├── context/
+│   │   ├── CONTEXT.md                           # Primary project reference
+│   │   ├── CONTEXT_TECH.md                      # Technical stack details
+│   │   ├── HANDOFF.md                           # Session resumption handoff
+│   │   └── .cursorrules                         # Agent code rules
 │   └── plans/
 │       └── 20260321_pwa_ecommerce_plan.md   # This file
-├── CONTEXT.md
+├── CONTEXT.md                               # Symlink or copy for root-level tools
 ├── LICENSE
 ├── Dockerfile.dev                           # Dev: Node.js + hot-reload
 ├── docker-compose.dev.yml                   # Dev: app + postgres + redis
@@ -915,66 +931,88 @@ cabox/
 ## 7. Environment Variables
 
 ```env
-# ── Database ──
-DATABASE_URL="postgresql://user:pass@host:5432/cabox?schema=public"
+# ════════════════════════════════════════════════
+# CABOX — Environment Variables Template (.env.dev)
+# Copy to .env.dev and fill all PLACEHOLDER values
+# before running: docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
+# ════════════════════════════════════════════════
 
-# ── Auth ──
-NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
+# ── Store Identity (PLACEHOLDER) ──────────────────
+STORE_NAME="cabox"                              # Used by spawn_store.sh
+NEXT_PUBLIC_STORE_NAME="Cabox"
+NEXT_PUBLIC_STORE_TAGLINE="Curated Fashion"     # Displayed in footer / meta
+NEXT_PUBLIC_SUPPORT_WHATSAPP="+50600000000"     # PLACEHOLDER: your WhatsApp business number
+
+# ── Database ──────────────────────────────────────
+DATABASE_URL="postgresql://cabox_user:cabox_pass@db:5432/cabox_dev?schema=public"
+POSTGRES_USER="cabox_user"
+POSTGRES_PASSWORD="cabox_pass"
+POSTGRES_DB="cabox_dev"
+
+# ── Auth ──────────────────────────────────────────
+NEXTAUTH_SECRET="PLACEHOLDER_run_openssl_rand_-base64_32"
 NEXTAUTH_URL="http://localhost:3000"
-ADMIN_EMAIL="admin@cabox.store"
-ADMIN_PASSWORD_HASH="bcrypt-hash-here"
+ADMIN_EMAIL="PLACEHOLDER_admin@yourdomain.com"
+ADMIN_PASSWORD_HASH="PLACEHOLDER_bcrypt_hash_of_your_password"
 
-# ── Stripe ──
-STRIPE_SECRET_KEY="sk_test_..."
-STRIPE_PUBLISHABLE_KEY="pk_test_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
+# ── Manual Payments (PLACEHOLDER) ─────────────────
+SINPE_PHONE_NUMBER="PLACEHOLDER_+506XXXXXXXX"   # Phone number registered for SINPE Móvil
+SINPE_ACCOUNT_NAME="PLACEHOLDER_Full Name"      # Exact name on SINPE account
+BANK_NAME="PLACEHOLDER_Banco Nacional"           # e.g. "Banco Nacional", "BAC Credomatic"
+BANK_IBAN="PLACEHOLDER_CR00 0000 0000 0000 0000 00"  # Full IBAN
+BANK_ACCOUNT_NAME="PLACEHOLDER_Full Name"        # Exact name on bank account
 
-# ── PayPal ──
-PAYPAL_CLIENT_ID="..."
-PAYPAL_CLIENT_SECRET="..."
-PAYPAL_MODE="sandbox"  # or "live"
+# ── Stripe ────────────────────────────────────────
+STRIPE_SECRET_KEY="PLACEHOLDER_sk_test_..."
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="PLACEHOLDER_pk_test_..."
+STRIPE_WEBHOOK_SECRET="PLACEHOLDER_whsec_..."
 
-# ── Google APIs ──
-GOOGLE_CLOUD_VISION_API_KEY="..."
-GOOGLE_CSE_API_KEY="..."
-GOOGLE_CSE_SEARCH_ENGINE_ID="..."
+# ── PayPal ────────────────────────────────────────
+NEXT_PUBLIC_PAYPAL_CLIENT_ID="PLACEHOLDER_..."
+PAYPAL_CLIENT_SECRET="PLACEHOLDER_..."
+PAYPAL_MODE="sandbox"                           # Change to "live" for production
 
-# ── Perplexity ──
-PERPLEXITY_API_KEY="pplx-..."
+# ── Google APIs ───────────────────────────────────
+GOOGLE_CLOUD_VISION_API_KEY="PLACEHOLDER_..."
+GOOGLE_CSE_API_KEY="PLACEHOLDER_..."
+GOOGLE_CSE_SEARCH_ENGINE_ID="PLACEHOLDER_..."
 
-# ── WhatsApp Business ──
-WHATSAPP_PHONE_NUMBER_ID="..."
-WHATSAPP_ACCESS_TOKEN="..."
-WHATSAPP_VERIFY_TOKEN="..."
-WHATSAPP_BUSINESS_ACCOUNT_ID="..."
+# ── Perplexity ────────────────────────────────────
+PERPLEXITY_API_KEY="PLACEHOLDER_pplx-..."
 
-# ── File Storage ──
-SUPABASE_URL="https://xxx.supabase.co"
-SUPABASE_ANON_KEY="..."
-SUPABASE_SERVICE_ROLE_KEY="..."
+# ── WhatsApp Business Cloud API ───────────────────
+WHATSAPP_PHONE_NUMBER_ID="PLACEHOLDER_..."      # From Meta Developer Portal
+WHATSAPP_ACCESS_TOKEN="PLACEHOLDER_..."         # System User Token or temporary token
+WHATSAPP_VERIFY_TOKEN="PLACEHOLDER_random_string_you_choose"
+WHATSAPP_BUSINESS_ACCOUNT_ID="PLACEHOLDER_..."
 
-# ── App ──
+# ── Supabase Storage ──────────────────────────────
+SUPABASE_URL="PLACEHOLDER_https://xxx.supabase.co"
+SUPABASE_ANON_KEY="PLACEHOLDER_..."
+SUPABASE_SERVICE_ROLE_KEY="PLACEHOLDER_..."
+
+# ── App ───────────────────────────────────────────
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXT_PUBLIC_DEFAULT_LOCALE="es"
 NEXT_PUBLIC_CURRENCY="CRC"
 
-# ── Meta / Social Commerce ──
-NEXT_PUBLIC_META_PIXEL_ID="..."
-META_CAPI_ACCESS_TOKEN="..."
-META_CAPI_PIXEL_ID="..."
+# ── Meta / Social Commerce ────────────────────────
+NEXT_PUBLIC_META_PIXEL_ID="PLACEHOLDER_..."
+META_CAPI_ACCESS_TOKEN="PLACEHOLDER_..."
+META_CAPI_PIXEL_ID="PLACEHOLDER_..."
 
-# ── Error Monitoring ──
-SENTRY_DSN="https://xxx@sentry.io/xxx"
-SENTRY_AUTH_TOKEN="..."
-NEXT_PUBLIC_SENTRY_DSN="https://xxx@sentry.io/xxx"
+# ── Error Monitoring ──────────────────────────────
+SENTRY_DSN="PLACEHOLDER_https://xxx@xxx.ingest.sentry.io/xxx"
+SENTRY_AUTH_TOKEN="PLACEHOLDER_..."
+NEXT_PUBLIC_SENTRY_DSN="PLACEHOLDER_https://xxx@xxx.ingest.sentry.io/xxx"
 
-# ── Transactional Email ──
-SENDGRID_API_KEY="SG.xxx"
-EMAIL_FROM="Cabox <orders@cabox.store>"
+# ── Transactional Email ───────────────────────────
+SENDGRID_API_KEY="PLACEHOLDER_SG.xxx"
+EMAIL_FROM="Cabox <PLACEHOLDER_orders@yourdomain.com>"
 
-# ── Rate Limiting ──
-UPSTASH_REDIS_REST_URL="https://xxx.upstash.io"
-UPSTASH_REDIS_REST_TOKEN="..."
+# ── Rate Limiting (Upstash Redis) ─────────────────
+UPSTASH_REDIS_REST_URL="PLACEHOLDER_https://xxx.upstash.io"
+UPSTASH_REDIS_REST_TOKEN="PLACEHOLDER_..."
 ```
 
 ---
@@ -1282,7 +1320,7 @@ Charts via `recharts` library.
 | 3 | **No API contracts** | Full endpoint table with methods and payloads (§7) |
 | 4 | **No auth strategy** | NextAuth.js v5 with admin-only credentials (§3, §5) |
 | 5 | **No env variables** | Complete `.env.local` template (§6) |
-| 6 | **No deployment target** | Vercel + Supabase defined (§3) |
+| 6 | **No deployment target** | Docker-centric: `Dockerfile.dev/.prd`, `docker-compose.dev/.prd.yml`, multi-store `spawn_store.sh` (§3.11) |
 | 7 | **No order tracking** | Public order status page via `/orders/[orderNumber]` (§5) |
 | 8 | **No customer model** | `Customer` model with phone as primary ID (§4) |
 | 9 | **No cart architecture** | Zustand + localStorage, guest checkout (§8.1) |
