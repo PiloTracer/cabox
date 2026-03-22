@@ -20,7 +20,7 @@ Architecture & strategic planning complete. Plan has 35 resolved critical gaps. 
    - Promotions, coupons, and price-change protection systems
 2. Added social commerce: Meta Pixel, Conversions API (CAPI), XML Product Feeds for IG/FB/Google Shopping
 3. Added WhatsApp CRM strategy: cart recovery, Buy via WA CTAs, conversational routing
-4. Added production infrastructure: Rate Limiting, Sentry, Resend Email, Security Headers, ISR Caching, Backups
+4. Added production infrastructure: Rate Limiting, Sentry, SendGrid Email, Security Headers, ISR Caching, Backups
 5. Added Docker-centric architecture with env-suffixed files (`.dev`/`.prd`) and multi-store spawning (`spawn_store.sh`)
 6. Added proprietary license
 7. Created all 4 context files

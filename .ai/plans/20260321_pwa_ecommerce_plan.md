@@ -894,7 +894,25 @@ cabox/
 
 ---
 
-## 6. Environment Variables
+## 6. External Service Directory
+
+| Service | Function in Cabox | Account Type | Dashboard URL |
+|---------|-------------------|-------------|---------------|
+| **Stripe** | Credit card payment processing (Checkout Sessions, webhooks) | Individual OK (business recommended for higher limits) | [dashboard.stripe.com](https://dashboard.stripe.com) |
+| **PayPal** | PayPal button payments (JS SDK, IPN webhooks) | Individual OK (Business account recommended) | [developer.paypal.com](https://developer.paypal.com) |
+| **Google Cloud** | Vision API (image analysis), Custom Search API (product images) | Individual OK (personal Gmail) | [console.cloud.google.com](https://console.cloud.google.com) |
+| **Perplexity** | AI product research — specs, descriptions, market pricing | Individual OK | [docs.perplexity.ai](https://docs.perplexity.ai) |
+| **WhatsApp** | Business Cloud API for order notifications + `wa.me` links | **Requires Meta Business Verification** (legal entity or DBA) | [business.facebook.com](https://business.facebook.com/latest/whatsapp_manager) |
+| **Supabase** | File storage (product images, invoices, reference uploads) | Individual OK | [supabase.com/dashboard](https://supabase.com/dashboard) |
+| **Sentry** | Error monitoring — client + server crash reporting, Slack alerts | Individual OK (free tier) | [sentry.io](https://sentry.io) |
+| **SendGrid** | Transactional email — order confirmations, invoices, shipping | Individual OK (custom domain needed for deliverability) | [sendgrid.com](https://app.sendgrid.com) |
+
+> [!NOTE]
+> Only **WhatsApp Business Cloud API** requires Meta Business Verification (proof of legal entity). However, the `wa.me` click-to-chat links work immediately with any WhatsApp Business app (no verification needed). You can launch with click-to-chat and add Cloud API later.
+
+---
+
+## 7. Environment Variables
 
 ```env
 # ── Database ──
@@ -951,7 +969,7 @@ SENTRY_AUTH_TOKEN="..."
 NEXT_PUBLIC_SENTRY_DSN="https://xxx@sentry.io/xxx"
 
 # ── Transactional Email ──
-RESEND_API_KEY="re_..."
+SENDGRID_API_KEY="SG.xxx"
 EMAIL_FROM="Cabox <orders@cabox.store>"
 
 # ── Rate Limiting ──
@@ -961,7 +979,7 @@ UPSTASH_REDIS_REST_TOKEN="..."
 
 ---
 
-## 7. Core API Contracts
+## 8. Core API Contracts
 
 ### 7.1 Public Store APIs
 
@@ -1004,7 +1022,7 @@ UPSTASH_REDIS_REST_TOKEN="..."
 
 ---
 
-## 8. Key Implementation Details
+## 9. Key Implementation Details
 
 ### 8.1 Cart Architecture
 - **Storage**: Client-side via Zustand store persisted to `localStorage`.
@@ -1252,7 +1270,7 @@ Charts via `recharts` library.
 
 ---
 
-## 9. Missing Functionalities — Identified & Addressed
+## 10. Missing Functionalities — Identified & Addressed
 
 > [!IMPORTANT]
 > These were **gaps in the original plan** that are now incorporated above:
@@ -1271,15 +1289,15 @@ Charts via `recharts` library.
 | 10 | **No checkout flow** | Step-by-step flow with payment branching (§8.2) |
 | 11 | **No pricing algorithm** | `estimatePrice()` function spec (§8.4) |
 | 12 | **No shipping formula** | Volumetric weight calculation + zone rates (§8.5) |
-| 13 | **No invoice PDF generation** | `@react-pdf/renderer` + Supabase storage (§8.7) |
-| 14 | **No reporting spec** | 6 report types with chart library (§8.8) |
+| 13 | **No invoice PDF generation** | `@react-pdf/renderer` + Supabase storage (§8.8) |
+| 14 | **No reporting spec** | 6 report types with chart library (§8.9) |
 | 15 | **No product variants** | `ProductVariant` model with attributes JSON (§4) |
 | 16 | **No category hierarchy** | Self-referencing `Category` model (§4) |
 | 17 | **Brand identity not extracted** | Full color palette + typography from logo (§2) |
 | 18 | **No discount/coupon system** | `Promotion` + `Coupon` models, evaluation engine, coupon validation API (§4, §8.6) |
 | 19 | **No seasonal promotions** | Time-bound `Promotion` with auto-activate/deactivate, storefront banners + countdown (§8.6) |
 | 20 | **No price-change protection** | `PriceChangeLog` audit trail + `Order.priceSnapshot` + cart revalidation API (§8.6.1) |
-| 21 | **No bulk repricing tool** | `/api/products/bulk-reprice` with dry-run, margin/markup/competitive strategies (§8.6.4) |
+| 21 | **No bulk repricing tool** | `/api/products/bulk-reprice` with dry-run, margin/markup/competitive strategies (§8.6.6) |
 | 22 | **Invoice PDF language unclear** | `Order.locale` field added; PDF renders in customer's locale at checkout (§3.4, §4) |
 | 23 | **WhatsApp templates not bilingual** | EN + ES versions of each template required for Meta approval (§3.4) |
 | 24 | **SEO not locale-aware** | `hreflang` tags, locale-specific OG tags, JSON-LD in customer locale (§3.4) |
@@ -1287,17 +1305,17 @@ Charts via `recharts` library.
 | 26 | **No social commerce feeds** | Auto-generating XML feeds (`/api/feeds/meta`) for IG/FB/Google Shopping added (§3.8, §8.6.5) |
 | 27 | **Purchase tracking inaccurate** | Added Meta Conversions API (CAPI) server-side tracking to bypass ad blockers (§3.8, §8.6.4) |
 | 28 | **Under-utilizing WhatsApp** | Expanded to full CRM strategy (Cart Recovery, Buy via WA CTAs, conversational routing) (§8.7) |
-| 29 | **No rate limiting** | `@upstash/ratelimit` on checkout, coupon, and AI endpoints with per-IP/per-user limits (§13.1) |
-| 30 | **No error monitoring** | `@sentry/nextjs` for client + server errors, Slack alerts for critical failures (§13.2) |
-| 31 | **No transactional email** | Resend + React Email templates for order/payment/shipping confirmations (§13.3) |
-| 32 | **No security headers** | CSP, HSTS, X-Frame-Options, Referrer-Policy configured in `next.config.mjs` (§13.4) |
-| 33 | **No caching strategy** | ISR per page type (30s-3600s) + client-side SWR for real-time data (§13.5) |
-| 34 | **No backup strategy** | Supabase daily snapshots + PITR + pre-migration `pg_dump` policy (§13.6) |
+| 29 | **No rate limiting** | `@upstash/ratelimit` on checkout, coupon, and AI endpoints with per-IP/per-user limits (§14.1) |
+| 30 | **No error monitoring** | `@sentry/nextjs` for client + server errors, Slack alerts for critical failures (§14.2) |
+| 31 | **No transactional email** | SendGrid + React Email templates for order/payment/shipping confirmations (§14.3) |
+| 32 | **No security headers** | CSP, HSTS, X-Frame-Options, Referrer-Policy configured in `next.config.mjs` (§14.4) |
+| 33 | **No caching strategy** | ISR per page type (30s-3600s) + client-side SWR for real-time data (§14.5) |
+| 34 | **No backup strategy** | Supabase daily snapshots + PITR + pre-migration `pg_dump` policy (§14.6) |
 | 35 | **Not containerized** | Full Docker-centric: env-suffixed files (`.dev`/`.prd`), multi-store spawning via `spawn_store.sh` (§3.11) |
 
 ---
 
-## 10. Phased Development Plan
+## 11. Phased Development Plan
 
 ### Phase 1 — Docker Scaffolding & Design System (Days 1–2)
 - [ ] Create `Dockerfile.dev` (Node.js + hot-reload dev server)
@@ -1389,7 +1407,7 @@ Charts via `recharts` library.
 
 ---
 
-## 11. Verification Plan
+## 12. Verification Plan
 
 ### Automated Tests
 ```bash
@@ -1415,7 +1433,7 @@ npx playwright test
 
 ---
 
-## 12. Risks & Mitigations
+## 13. Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
@@ -1426,15 +1444,15 @@ npx playwright test
 | Costa Rica shipping complexity | Inaccurate estimates | Start with flat provincial zones; refine with real carrier data later |
 | Checkout abuse / bots | Fraudulent orders, coupon scraping | Rate limiting via `@upstash/ratelimit` on all public mutation endpoints |
 | Production crashes invisible | Lost sales, silent failures | Sentry error monitoring with Slack alerts for critical errors |
-| Email deliverability | Confirmations go to spam | Use Resend (dedicated sending domain) with SPF/DKIM/DMARC |
+| Email deliverability | Confirmations go to spam | Use SendGrid (dedicated sending domain) with SPF/DKIM/DMARC |
 
 ---
 
-## 13. Production Infrastructure (Non-Negotiable)
+## 14. Production Infrastructure (Non-Negotiable)
 
 These are the systems that separate a toy project from a **production-grade eCommerce operation**:
 
-### 13.1 Rate Limiting (`@upstash/ratelimit`)
+### 14.1 Rate Limiting (`@upstash/ratelimit`)
 
 | Endpoint | Limit | Key |
 |----------|-------|-----|
@@ -1446,14 +1464,14 @@ These are the systems that separate a toy project from a **production-grade eCom
 
 Uses Upstash Redis (serverless, free tier covers MVP traffic). Implemented as Next.js middleware.
 
-### 13.2 Error Monitoring (`@sentry/nextjs`)
+### 14.2 Error Monitoring (`@sentry/nextjs`)
 
 - **Client-side**: Captures React rendering errors, unhandled promise rejections, and failed network requests.
 - **Server-side**: Captures API route errors, Prisma query failures, and payment webhook errors.
 - **Alerts**: Sentry → Slack webhook for `fatal` and `error` level events.
 - **Source maps**: Uploaded at build time for readable stack traces in production.
 
-### 13.3 Transactional Email (`resend`)
+### 14.3 Transactional Email (`@sendgrid/mail`)
 
 WhatsApp is the primary channel, but email is the **fallback** and **legal record**:
 
@@ -1467,7 +1485,7 @@ WhatsApp is the primary channel, but email is the **fallback** and **legal recor
 - Uses React Email templates (`@react-email/components`) for type-safe, beautiful HTML emails.
 - All templates render in the customer's `Order.locale` (EN or ES).
 
-### 13.4 Security Headers
+### 14.4 Security Headers
 
 Configured in `next.config.mjs`:
 
@@ -1480,7 +1498,7 @@ Referrer-Policy:             strict-origin-when-cross-origin
 Permissions-Policy:          camera=(), microphone=(), geolocation=()
 ```
 
-### 13.5 Caching Strategy (ISR + SWR)
+### 14.5 Caching Strategy (ISR + SWR)
 
 | Page | Strategy | Revalidation |
 |------|----------|-------------|
@@ -1495,7 +1513,7 @@ Permissions-Policy:          camera=(), microphone=(), geolocation=()
 - **ISR** (Incremental Static Regeneration): Product pages are pre-rendered at build time and regenerated in the background. First visitor gets static HTML (fast), subsequent visitors get updated data.
 - **SWR** on client: `useSWR` for cart validation and promotion checks to ensure freshness without full page reloads.
 
-### 13.6 Database Backups
+### 14.6 Database Backups
 
 - **Supabase automatic backups**: Daily snapshots retained for 7 days (free tier) or 30 days (Pro).
 - **Point-in-time recovery (PITR)**: Available on Supabase Pro plan — restores to any second within the retention window.

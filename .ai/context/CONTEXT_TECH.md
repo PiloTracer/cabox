@@ -79,7 +79,7 @@
 ### Communication
 - **WhatsApp Business Cloud API**: Outbound order notifications (pre-approved templates in EN/ES)
 - **wa.me links**: Customer-initiated contact (zero API needed)
-- **Resend**: Transactional email (order confirmation, invoices)
+- **SendGrid**: Transactional email (order confirmation, invoices)
 - **@react-email/components**: Type-safe HTML email templates
 
 ### File Storage
@@ -207,6 +207,6 @@ All defined in `.env.dev` (see plan §6 for full template):
 - **Supabase**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 - **Meta/Social**: `NEXT_PUBLIC_META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN`
 - **Sentry**: `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`
-- **Email**: `RESEND_API_KEY`, `EMAIL_FROM`
+- **Email**: `SENDGRID_API_KEY`, `EMAIL_FROM`
 - **Redis**: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
 - **App**: `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_DEFAULT_LOCALE`, `NEXT_PUBLIC_CURRENCY`

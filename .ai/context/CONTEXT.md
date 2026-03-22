@@ -32,7 +32,7 @@
 | WhatsApp | Cloud API (outbound) + `wa.me` links (inbound) |
 | Deploy | Docker (env-suffixed: `.dev`/`.prd`) + PostgreSQL + Redis + Nginx |
 | State | Zustand (cart), React Hook Form + Zod |
-| Email | Resend + React Email |
+| Email | SendGrid + React Email |
 | Monitoring | Sentry (`@sentry/nextjs`) |
 | Rate Limiting | `@upstash/ratelimit` via Redis |
 
