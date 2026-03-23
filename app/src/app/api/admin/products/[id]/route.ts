@@ -22,13 +22,13 @@ const patchSchema = z.object({
   promotionalMedia: z.any().optional().nullable(),
 });
 
-interface Params { params: { id: string } }
+interface Params { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
 
-  const { id } = params;
+  const { id } = await params;
   const product = await prisma.product.findUnique({ where: { id }, include: { category: true } });
   if (!product) return NextResponse.json({ message: 'Not found' }, { status: 404 });
   return NextResponse.json(product);

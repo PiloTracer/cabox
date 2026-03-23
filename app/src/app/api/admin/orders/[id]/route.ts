@@ -10,7 +10,7 @@ const patchSchema = z.object({
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
@@ -33,7 +33,7 @@ export async function GET(
   return NextResponse.json(order);
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
 
@@ -60,12 +60,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
 
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
 
