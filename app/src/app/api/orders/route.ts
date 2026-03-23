@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
   const page = parseInt(searchParams.get('page') ?? '1', 10);
   const PAGE_SIZE = 20;
 
-  const where = status ? { status } : {};
+  const where = status ? { status: status as import('@prisma/client').OrderStatus } : {};
   const [orders, total] = await Promise.all([
     prisma.order.findMany({
       where,
