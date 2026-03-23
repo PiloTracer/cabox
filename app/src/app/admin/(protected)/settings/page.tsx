@@ -1,11 +1,13 @@
-import { requireAdmin } from '@/lib/auth-guard';
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
+import { authOptions } from '@/lib/auth';
 import SettingsClient from '@/components/admin/SettingsClient';
 
 export const metadata = { title: 'Configuración — Cabox Admin' };
 
 export default async function SettingsPage() {
-  const authError = await requireAdmin();
-  if (authError) return authError;
+  const session = await getServerSession(authOptions);
+  if (!session) redirect('/admin/login');
 
   return (
     <div className="admin-page">
