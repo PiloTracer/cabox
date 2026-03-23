@@ -10,11 +10,15 @@ export async function GET(_req: Request, { params }: Props) {
   const { orderNumber } = await params;
   const order = await prisma.order.findUnique({
     where: { orderNumber },
-    select: { paymentProofUrls: true, paymentMethod: true, paymentStatus: true },
+    include: { tickets: { where: { type: 'PAYMENT_PROOF' } } },
   });
   if (!order) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
+
+  const proofTicket = order.tickets[0];
+  const proofUrls = proofTicket ? (proofTicket.attachments as string[]) : [];
+
   return NextResponse.json({
-    proofUrls: order.paymentProofUrls as string[],
+    proofUrls,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
   });
@@ -40,11 +44,13 @@ export async function POST(req: Request, { params }: Props) {
 
   const order = await prisma.order.findUnique({
     where: { orderNumber },
-    select: { id: true, paymentProofUrls: true },
+    include: { tickets: { where: { type: 'PAYMENT_PROOF' } } },
   });
   if (!order) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
 
-  const existing = (order.paymentProofUrls as string[]) ?? [];
+  const proofTicket = order.tickets[0];
+  const existing = proofTicket ? (proofTicket.attachments as string[]) : [];
+
   if (existing.length >= MAX_PROOFS) {
     return NextResponse.json(
       { error: `Máximo ${MAX_PROOFS} comprobantes permitidos por pedido` },
@@ -53,10 +59,22 @@ export async function POST(req: Request, { params }: Props) {
   }
 
   const updated = [...existing, url];
-  await prisma.order.update({
-    where: { orderNumber },
-    data: { paymentProofUrls: updated },
-  });
+
+  if (proofTicket) {
+    await prisma.orderTicket.update({
+      where: { id: proofTicket.id },
+      data: { attachments: updated },
+    });
+  } else {
+    await prisma.orderTicket.create({
+      data: {
+        orderId: order.id,
+        orderNumber,
+        type: 'PAYMENT_PROOF',
+        attachments: updated,
+      },
+    });
+  }
 
   return NextResponse.json({ proofUrls: updated });
 }
@@ -71,16 +89,19 @@ export async function DELETE(req: Request, { params }: Props) {
 
   const order = await prisma.order.findUnique({
     where: { orderNumber },
-    select: { id: true, paymentProofUrls: true },
+    include: { tickets: { where: { type: 'PAYMENT_PROOF' } } },
   });
   if (!order) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
 
-  const existing = (order.paymentProofUrls as string[]) ?? [];
+  const proofTicket = order.tickets[0];
+  if (!proofTicket) return NextResponse.json({ proofUrls: [] });
+
+  const existing = (proofTicket.attachments as string[]) ?? [];
   const updated = existing.filter((u) => u !== body.url);
 
-  await prisma.order.update({
-    where: { orderNumber },
-    data: { paymentProofUrls: updated },
+  await prisma.orderTicket.update({
+    where: { id: proofTicket.id },
+    data: { attachments: updated },
   });
 
   return NextResponse.json({ proofUrls: updated });
