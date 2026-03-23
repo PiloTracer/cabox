@@ -9,11 +9,11 @@ RUN npm install --legacy-peer-deps
 # Stage 2: builder — build the Next.js app
 FROM node:20-alpine AS builder
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Generate Prisma client against the production datasource
-RUN npx prisma generate
-RUN npm run build
+# Generate Prisma client and build in one layer
+RUN npx prisma generate && npm run build
 
 # Stage 3: runner — production image (standalone output)
 FROM node:20-alpine AS runner

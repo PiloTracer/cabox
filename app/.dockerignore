@@ -1,0 +1,7 @@
+node_modules
+.next
+.git
+*.md
+test-gemini.js
+get_slug.js
+update-admin.mjs
