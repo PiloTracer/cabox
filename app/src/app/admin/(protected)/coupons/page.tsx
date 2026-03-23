@@ -55,7 +55,7 @@ export default async function AdminCouponsPage() {
                   <td style={{ fontWeight: 600 }}>
                     {c.type === 'PERCENTAGE' ? `${Number(c.discountValue)}%` :
                      c.type === 'FREE_SHIPPING' ? '—' :
-                     formatCRC(c.discountValue)}
+                     formatCRC(Number(c.discountValue))}
                   </td>
                   <td style={{ fontSize: '0.875rem' }}>
                     {c.usedCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ' / ∞'}
