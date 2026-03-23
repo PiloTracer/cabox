@@ -31,7 +31,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
   const page = parseInt(pageStr ?? '1', 10);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const where = status ? { status } : {};
+  const where = status ? { status: status as import('@prisma/client').OrderStatus } : {};
 
   const [orders, total] = await Promise.all([
     prisma.order.findMany({
