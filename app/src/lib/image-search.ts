@@ -94,7 +94,7 @@ export async function searchProductImages(
       'googlethis scraper'
     );
 
-    if (images && images.length > 0) {
+    if (Array.isArray(images) && images.length > 0) {
       const results = images.slice(0, count).map((img: any) => ({
         url:   img.url   || '',
         title: img.origin?.title || query,
