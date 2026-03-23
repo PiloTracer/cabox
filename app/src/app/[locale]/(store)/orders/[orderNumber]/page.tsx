@@ -14,7 +14,7 @@ const STATUS_ES: Record<string, string> = {
   SHIPPED: 'Enviado', DELIVERED: 'Entregado', CANCELLED: 'Cancelado',
 };
 const PAY_ES: Record<string, string> = {
-  UNPAID: 'Sin pagar', PAID: 'Pagado', REFUNDED: 'Reembolsado',
+  PENDING: 'Pendiente', COMPLETED: 'Pagado', FAILED: 'Fallido', REFUNDED: 'Reembolsado',
 };
 const METHOD_ES: Record<string, string> = {
   SINPE: 'SINPE Móvil', STRIPE: 'Tarjeta', PAYPAL: 'PayPal',
@@ -119,7 +119,7 @@ export default async function OrderStatusPage({ params }: Props) {
             <dt>Método de pago</dt><dd>{METHOD_ES[order.paymentMethod] ?? order.paymentMethod}</dd>
             <dt>Estado de pago</dt>
             <dd>
-              <span className={`badge badge-${order.paymentStatus === 'PAID' ? 'success' : order.paymentStatus === 'UNPAID' ? 'warning' : 'muted'}`}>
+              <span className={`badge badge-${order.paymentStatus === 'COMPLETED' ? 'success' : order.paymentStatus === 'PENDING' ? 'warning' : 'muted'}`}>
                 {PAY_ES[order.paymentStatus] ?? order.paymentStatus}
               </span>
             </dd>
