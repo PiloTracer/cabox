@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Get all categories
   const categories = await prisma.category.findMany({
-    select: { slug: true, updatedAt: true },
+    select: { slug: true, createdAt: true },
   });
 
   // Base routes for both locales
@@ -51,13 +51,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const categoryRoutes = categories.flatMap((cat) => [
     {
       url: `${baseUrl}/es/products?cat=${cat.slug}`,
-      lastModified: cat.updatedAt,
+      lastModified: cat.createdAt,
       changeFrequency: 'weekly' as const,
       priority: 0.7,
     },
     {
       url: `${baseUrl}/en/products?cat=${cat.slug}`,
-      lastModified: cat.updatedAt,
+      lastModified: cat.createdAt,
       changeFrequency: 'weekly' as const,
       priority: 0.7,
     },
