@@ -17,7 +17,7 @@ export async function GET() {
     select: { paymentMethods: true },
   });
 
-  const rawMethods = (settings?.paymentMethods as Record<string, MethodConfig>) ?? {};
+  const rawMethods = (settings?.paymentMethods as unknown as Record<string, MethodConfig>) ?? {};
 
   // Build the response: only include enabled methods, with safe config per method
   const methods: Record<string, object> = {};
