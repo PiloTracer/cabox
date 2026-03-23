@@ -19,10 +19,15 @@ interface CartStore {
   items: CartItem[];
   couponCode?: string;
   couponDiscount: number;
+  
+  // UI State
+  isCartOpen: boolean;
 
   // Actions
   addItem: (item: CartItem) => void;
   removeItem: (id: string, variantId?: string) => void;
+  openCart: () => void;
+  closeCart: () => void;
   updateQuantity: (id: string, variantId: string | undefined, quantity: number) => void;
   clearCart: () => void;
   applyCoupon: (code: string, discount: number) => void;
@@ -44,6 +49,10 @@ export const useCartStore = create<CartStore>()(
       items: [],
       couponCode: undefined,
       couponDiscount: 0,
+      isCartOpen: false,
+
+      openCart: () => set({ isCartOpen: true }),
+      closeCart: () => set({ isCartOpen: false }),
 
       addItem: (newItem) => {
         set((state) => {
@@ -60,7 +69,7 @@ export const useCartStore = create<CartStore>()(
               ),
             };
           }
-          return { items: [...state.items, newItem] };
+          return { items: [...state.items, newItem], isCartOpen: true };
         });
       },
 
@@ -114,6 +123,11 @@ export const useCartStore = create<CartStore>()(
     {
       name: 'cabox-cart',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ 
+        items: state.items, 
+        couponCode: state.couponCode, 
+        couponDiscount: state.couponDiscount 
+      }), // Don't persist UI state (isCartOpen)
     }
   )
 );

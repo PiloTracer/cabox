@@ -77,8 +77,29 @@ export default async function ProductDetailPage({ params }: Props) {
     take: 4,
   });
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: name,
+    image: images,
+    description: description || name,
+    sku: product.sku,
+    offers: {
+      '@type': 'Offer',
+      url: `https://www.cabox.app/${locale}/products/${product.slug}`,
+      priceCurrency: 'CRC',
+      price: Number(product.price),
+      availability: stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      seller: { '@type': 'Organization', name: 'Cabox' }
+    }
+  };
+
   return (
     <div className="container" style={{ paddingBlock: '2.5rem' }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Breadcrumb */}
       <nav className="breadcrumb" aria-label="breadcrumb">
         <a href={`/${locale}`}>Inicio</a>

@@ -1,10 +1,18 @@
 # Cabox — Session Handoff
 
-> **Last Updated**: 2026-03-21T21:56:00-06:00
+> **Last Updated**: 2026-03-22T21:36:00-06:00
+> **Session Date**: March 22, 2026
 
 ## Current Focus
 
-Phase 3 complete. Storefront, admin, checkout, and static pages are all implemented and running. Next work is Phase 4 (Stripe, admin order detail, category management, WhatsApp notifications, PWA).
+Phase 4 work completed today. All 5 Storefront Professional Enhancements are implemented:
+1. ✅ Slide-out Cart Drawer (Zustand global state)
+2. ✅ Image Zoom (Desktop magnifier + Mobile lightbox)
+3. ✅ Skeleton Loaders (loading.tsx for products grid + detail)
+4. ✅ JSON-LD Schema Markup (Product + Organization)
+5. ✅ Dynamic Sitemap & Robots.txt
+
+Earlier in session: fixed order checkout API, admin order detail page, AI ad generator with Gemini, share button, promotional media section, WhatsApp text ads always including URL.
 
 ## Docker Stack (dev)
 
@@ -19,6 +27,43 @@ Phase 3 complete. Storefront, admin, checkout, and static pages are all implemen
 **Start command**: `./bin/start.sh dev`
 **URLs**: Store → `http://localhost:8080/es` | Admin → `http://localhost:8080/admin`
 
+## Uncommitted Changes (5 Modified + 7 New)
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `app/src/app/[locale]/(store)/layout.tsx` | Added Organization JSON-LD + CartDrawer import |
+| `app/src/app/[locale]/(store)/products/[slug]/page.tsx` | Added Product JSON-LD schema |
+| `app/src/components/store/Navbar.tsx` | Removed inline CartDrawer, uses global `openCart` from Zustand |
+| `app/src/components/store/ProductGallery.tsx` | Added hover magnifier (2x zoom) + fullscreen lightbox modal |
+| `app/src/stores/cart-store.ts` | Added `isCartOpen`, `openCart`, `closeCart` state + actions |
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `app/src/components/store/CartDrawer.tsx` | Global slide-out cart drawer (175 lines) |
+| `app/src/components/store/ProductCardSkeleton.tsx` | Reusable skeleton for product cards |
+| `app/src/app/[locale]/(store)/products/loading.tsx` | Skeleton for products grid page |
+| `app/src/app/[locale]/(store)/products/[slug]/loading.tsx` | Skeleton for product detail page |
+| `app/src/app/sitemap.ts` | Dynamic sitemap querying Prisma for active products |
+| `app/src/app/robots.ts` | Blocks `/admin/` and `/api/`, broadcasts sitemap URL |
+| `.ai/plans/20260322_storefront_enhancements.md` | Enhancement plan doc |
+
+## Known Issues / Blockers
+
+1. **Sitemap 500 in dev**: `http://localhost:8080/sitemap.xml` returns 500. Likely a Nginx proxy issue — the route works inside the Docker container on port 3000 but fails through the Nginx reverse proxy on 8080. Needs investigation of `nginx.conf` to ensure `/sitemap.xml` is properly forwarded.
+2. **VS Code TS lint errors**: Persistent false-positive "Cannot find module" errors because the IDE TS server runs against repo root, not inside Docker. Turbopack compiles correctly inside Docker.
+3. **PgBouncer & Prisma**: Prisma singleton uses `DATABASE_URL_DIRECT` (bypasses PgBouncer). Do not change.
+4. **CartDrawer i18n**: Uses namespace `'cart'` — must match `es.json` / `en.json` message keys.
+
+## Git State
+
+```
+bd44e41 (HEAD -> master, origin/master) promotional material is saved
+```
+
+**User must commit**: `git add . && git commit -m "feat: storefront enhancements — cart drawer, image zoom, skeletons, SEO"`
+
 ## Active Files (Key Areas)
 
 ### Infrastructure
@@ -29,76 +74,58 @@ Phase 3 complete. Storefront, admin, checkout, and static pages are all implemen
 - `app/prisma/seed.ts` — seeds admin user + categories + sample products
 
 ### Backend / API
-- `app/src/lib/prisma.ts` — Prisma singleton using `DATABASE_URL_DIRECT` (bypasses PgBouncer — **do not revert**)
+- `app/src/lib/prisma.ts` — Prisma singleton using `DATABASE_URL_DIRECT`
 - `app/src/lib/auth.ts` — NextAuth.js credentials config
-- `app/src/app/api/auth/[...nextauth]/route.ts` — auth handler
-- `app/src/app/api/admin/products/route.ts` — POST (create), GET (list)
-- `app/src/app/api/admin/products/[id]/route.ts` — GET, PUT, DELETE (soft-archive)
-- `app/src/app/api/orders/route.ts` — POST order creation, generates `CBXyyMM-XXXX` number
+- `app/src/app/api/orders/route.ts` — POST order creation
+- `app/src/app/api/admin/orders/[id]/route.ts` — GET, PATCH (status updates)
+- `app/src/app/api/admin/products/generate-ad/route.ts` — Gemini AI ad generation
 
 ### Storefront (`app/src/app/[locale]/(store)/`)
-- `layout.tsx` — wraps with Navbar + Footer
-- `page.tsx` — home page (hero, category pills, featured products, value props)
+- `layout.tsx` — Navbar + Footer + CartDrawer + Organization JSON-LD
+- `page.tsx` — home page (hero, category pills, featured products)
 - `products/page.tsx` — products grid with FilterBar + search
-- `products/[slug]/page.tsx` — product detail (gallery, AddToCart, WhatsApp buy, related)
-- `checkout/page.tsx` → `components/store/CheckoutForm.tsx` — 5 payment methods, order summary
+- `products/loading.tsx` — skeleton loader (NEW)
+- `products/[slug]/page.tsx` — product detail (gallery, zoom, AddToCart, WhatsApp, share, promo media, JSON-LD)
+- `products/[slug]/loading.tsx` — skeleton loader (NEW)
+- `checkout/page.tsx` — 5 payment methods, order summary
 - `orders/[orderNumber]/page.tsx` — order status with progress steps
-- `pages/[slug]/page.tsx` — static pages: `envios`, `contacto`, `privacidad`, `terminos` (ES + EN)
 
 ### Admin (`app/src/app/admin/`)
-- `layout.tsx` — session guard (redirects to `/admin/login` if unauth)
 - `login/page.tsx` — credentials login form
 - `page.tsx` — dashboard (stats + recent orders)
-- `products/page.tsx` — products table (image, name, category, price, status)
-- `products/new/page.tsx` → `components/admin/ProductForm.tsx` — create with auto-slug
-- `products/[id]/edit/page.tsx` — edit (loads existing data into ProductForm)
-- `orders/page.tsx` — orders table with status filter tabs and pagination
+- `products/page.tsx` — products table
+- `products/new/page.tsx` / `products/[id]/edit/page.tsx` — ProductForm with AI ad generator
+- `orders/page.tsx` — orders table with status filter tabs
+- `orders/[id]/page.tsx` — order detail with status management
+- `settings/page.tsx` — store config with tabbed UI
 
-### Components
-- `src/components/Providers.tsx` — SessionProvider wrapper
-- `src/components/store/Navbar.tsx` — mobile menu + inline CartDrawer (Zustand)
-- `src/components/store/Footer.tsx` — links to all static pages
-- `src/components/store/ProductCard.tsx` — image, badges, price
-- `src/components/store/FilterBar.tsx` — client-side category filter
-- `src/components/store/AddToCartButton.tsx` — add with success state
-- `src/components/store/CheckoutForm.tsx` — full checkout UI
-- `src/components/admin/AdminSidebar.tsx` — nav + sign-out
-- `src/components/admin/ProductForm.tsx` — shared create/edit form
+### Components (key ones modified today)
+- `CartDrawer.tsx` — Global offcanvas cart drawer (Zustand-driven) (NEW)
+- `Navbar.tsx` — Now uses `openCart` from global store (no inline cart)
+- `ProductGallery.tsx` — Hover magnifier + lightbox modal
+- `ProductCardSkeleton.tsx` — Reusable skeleton (NEW)
+- `ShareButton.tsx` — Web Share API + clipboard fallback
+- `AddToCartButton.tsx` — triggers cart drawer via `addItem`
 
 ### State & Design
-- `src/stores/cart-store.ts` — Zustand + localStorage persistence
-- `src/app/globals.css` — full design system tokens + all component CSS
-- `src/messages/es.json` / `en.json` — i18n strings
+- `src/stores/cart-store.ts` — Zustand + localStorage + `isCartOpen` UI state
+- `src/app/globals.css` — full design system tokens + all component CSS (1016 lines)
+- `src/messages/es.json` / `en.json` — i18n strings (include `cart` namespace)
 
-## Known Issues / Important Notes
+### SEO
+- `src/app/sitemap.ts` — Dynamic sitemap (products + categories + both locales) (NEW)
+- `src/app/robots.ts` — Blocks `/admin` + `/api`, points to sitemap (NEW)
 
-1. **PgBouncer & Prisma**: PgBouncer breaks SCRAM-SHA-256 auth with PG16. Prisma singleton (`lib/prisma.ts`) uses `DATABASE_URL_DIRECT` (direct PG connection). Do not change this without fixing PgBouncer config.
-2. **NEXTAUTH_SECRET**: `.env.dev` contains a placeholder. Replace with `openssl rand -base64 32` output before production.
-3. **NEXTAUTH_URL**: Set to `http://localhost:8080` (Nginx port). Must match the public-facing URL.
-4. **VS Code TS errors**: IDE shows "Cannot find module 'next'" etc. — false positives because TS server runs against repo root, not `app/`. Turbopack compiles correctly inside Docker.
-5. **`images` field**: Prisma JSON field can be `null`. All pages that read `product.images` must use `(product.images as string[] | null) ?? []`.
-6. **Admin login credentials**: `ADMIN_EMAIL` and `ADMIN_SEED_PASSWORD` from `.env.dev`. Password hash stored in DB via seed.
+## Atomic Next Steps
 
-## Git State
-
-```
-76cac66 (HEAD -> master, origin/master) products   ← Phase 2+3 commit
-238cbaa  feat: Phase 1 — Docker scaffolding...
-```
-
-Uncommitted changes: Phase 3 additions (checkout, orders, admin product form, static pages, CSS). **User must commit before proceeding (Agent is restricted from Git Ops).**
-
-## Atomic Next Steps (Phase 4)
-
-1. **User Action Required:** Execute `git add . && git commit -m "feat: Phase 3 — checkout, admin CRUD, static pages"` to commit current work.
-2. **Admin order detail page** — `/admin/orders/[id]/page.tsx` — view order items + update status (PATCH `/api/admin/orders/[id]`)
-3. **Admin orders PATCH API** — `app/src/app/api/admin/orders/[id]/route.ts` — update status + payment status
-4. **Category management** — `/admin/categories` — list + create + reorder
-5. **Stripe integration** — install `stripe`, create `/api/webhooks/stripe` route, update order payment status on `payment_intent.succeeded`
-6. **WhatsApp notify** — on order create, send WA message to admin via Twilio API or WAHA
-7. **PWA service worker** — `next-pwa` or custom SW for offline product cache + install prompt
-8. **Image upload** — Cloudflare R2 or Vercel Blob for product images (currently URL-only)
-9. **Inventory variants** — `ProductVariant` model exists in schema; wire into ProductForm
+1. **User Action**: Commit uncommitted changes
+2. **Fix Sitemap 500**: Investigate Nginx config for `/sitemap.xml` proxy pass
+3. **Category management** — `/admin/categories` — list + create + reorder
+4. **Stripe integration** — install `stripe`, webhook route, payment flow
+5. **WhatsApp notifications** — on order create, send WA to admin
+6. **PWA service worker** — offline product cache + install prompt
+7. **Image upload** — Cloudflare R2 / Vercel Blob for product images
+8. **Inventory variants** — `ProductVariant` model exists; wire into ProductForm
 
 ## Environment
 

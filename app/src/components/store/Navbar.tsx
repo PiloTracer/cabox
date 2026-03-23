@@ -15,9 +15,9 @@ interface NavbarProps {
 export default function Navbar({ locale }: NavbarProps) {
   const t = useTranslations('nav');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const itemCount = useCartStore((s) => s.totalItems());
+  const openCart = useCartStore((s) => s.openCart);
 
   // Prevent hydration mismatch: cart count from localStorage is only available client-side
   useEffect(() => { setMounted(true); }, []);
@@ -57,7 +57,7 @@ export default function Navbar({ locale }: NavbarProps) {
 
             <button
               className="navbar-icon-btn navbar-cart-btn"
-              onClick={() => setCartOpen(true)}
+              onClick={openCart}
               aria-label={t('cart')}
             >
               <ShoppingCart size={20} />
@@ -86,89 +86,6 @@ export default function Navbar({ locale }: NavbarProps) {
           </div>
         )}
       </header>
-
-      {cartOpen && (
-        <CartDrawer onClose={() => setCartOpen(false)} locale={locale} />
-      )}
-    </>
-  );
-}
-
-function CartDrawer({ onClose, locale }: { onClose: () => void; locale: string }) {
-  const t = useTranslations('cart');
-  const items = useCartStore((s) => s.items);
-  const subtotal = useCartStore((s) => s.subtotal());
-  const removeItem = useCartStore((s) => s.removeItem);
-  const updateQuantity = useCartStore((s) => s.updateQuantity);
-
-  const fmt = formatCRC;
-
-  return (
-    <>
-      <div className="drawer-backdrop" onClick={onClose} />
-      <aside className="drawer-panel animate-slide-in">
-        <div className="drawer-header">
-          <h2 className="drawer-title">{t('title')}</h2>
-          <button className="navbar-icon-btn" onClick={onClose}><X size={20} /></button>
-        </div>
-
-        {items.length === 0 ? (
-          <div className="drawer-empty">
-            <ShoppingCart size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-            <p>{t('empty')}</p>
-            <Link
-              href={`/${locale}/products`}
-              className="btn btn-primary btn-sm"
-              style={{ marginTop: '1rem' }}
-              onClick={onClose}
-            >
-              {t('continueShopping')}
-            </Link>
-          </div>
-        ) : (
-          <>
-            <ul className="drawer-items">
-              {items.map((item) => (
-                <li key={`${item.id}-${item.variantId ?? ''}`} className="drawer-item">
-                  <div className="drawer-item-info">
-                    <p className="drawer-item-name">{locale === 'es' ? item.nameEs : item.nameEn}</p>
-                    <p className="drawer-item-price price">{fmt(item.price)}</p>
-                  </div>
-                  <div className="drawer-item-controls">
-                    <button className="qty-btn" onClick={() => updateQuantity(item.id, item.variantId, item.quantity - 1)}>−</button>
-                    <span className="qty-value">{item.quantity}</span>
-                    <button className="qty-btn" onClick={() => updateQuantity(item.id, item.variantId, item.quantity + 1)}>+</button>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => removeItem(item.id, item.variantId)}
-                      style={{ color: 'var(--color-error)' }}
-                    >
-                      {t('remove')}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            <div className="drawer-footer">
-              <div className="drawer-totals">
-                <div className="drawer-total-row">
-                  <span>{t('subtotal')}</span>
-                  <span className="price">{fmt(subtotal)}</span>
-                </div>
-              </div>
-              <Link
-                href={`/${locale}/checkout`}
-                className="btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={onClose}
-              >
-                {t('checkout')}
-              </Link>
-            </div>
-          </>
-        )}
-      </aside>
     </>
   );
 }
