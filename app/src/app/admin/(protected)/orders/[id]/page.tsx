@@ -120,12 +120,12 @@ export default async function AdminOrderDetailPage({ params }: Props) {
 
             {/* Totals */}
             <div style={{ borderTop: '1px solid var(--color-border)', marginTop: '1rem', paddingTop: '1rem' }}>
-              {[
+              {([
                 ['Subtotal', formatCRC(order.subtotal)],
                 order.discountAmount && Number(order.discountAmount) > 0 ? ['Descuento', `−${formatCRC(order.discountAmount)}`] : null,
                 ['Envío', formatCRC(order.shippingCost)],
                 ['Impuesto', formatCRC(order.tax)],
-              ].filter(Boolean).map(([label, value]: [string, string]) => (
+              ].filter(Boolean) as [string, string][]).map(([label, value]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
                   <span>{label}</span><span>{value}</span>
                 </div>
