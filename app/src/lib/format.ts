@@ -9,7 +9,8 @@
  * Format a number as Costa Rican Colones (CRC).
  * @example formatCRC(15000) → "₡15.000"
  */
-export function formatCRC(amount: number | string | { valueOf(): number }): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts Prisma Decimal, number, string
+export function formatCRC(amount: any): string {
   return new Intl.NumberFormat('es-CR', {
     style: 'currency',
     currency: 'CRC',
@@ -20,7 +21,7 @@ export function formatCRC(amount: number | string | { valueOf(): number }): stri
 /**
  * Format a number as US Dollars (USD).
  */
-export function formatUSD(amount: number | string): string {
+export function formatUSD(amount: any): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
