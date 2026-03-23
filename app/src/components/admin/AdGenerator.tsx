@@ -18,6 +18,7 @@ interface AdGeneratorProps {
     price: string;
     currency: string;
     tags?: string[];
+    slug?: string;   // used to build the public product URL
   };
 }
 
@@ -34,12 +35,17 @@ export function AdGenerator({ promotionalCopy, onChange, productContext }: AdGen
     setError('');
     
     try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+      const productUrl = productContext.slug
+        ? `${appUrl}/es/products/${productContext.slug}`
+        : '';
+
       const res = await fetch('/api/admin/ai/generate-ad', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platform,
-          product: productContext,
+          product: { ...productContext, url: productUrl },
         }),
       });
 

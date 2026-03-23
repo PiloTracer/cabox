@@ -826,6 +826,7 @@ export default function ProductForm({
                 descriptionEs: data.descriptionEs,
                 price: data.price,
                 currency: data.currency,
+                slug: data.slug,
               }}
             />
 

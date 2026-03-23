@@ -40,13 +40,16 @@ export async function POST(req: Request) {
       Description: ${product.descriptionEs || product.descriptionEn}
       Price: ${product.price} ${product.currency}
       Tags: ${(product.tags || []).join(', ')}
+      Product URL: ${product.url || ''}
       
       Platform Requirements for ${platform.toUpperCase()}:
       ${platformGuide}
       
       Language: Spanish (Costa Rica localization).
       
-      IMPORTANT: Return ONLY valid JSON with exactly this structure:
+      IMPORTANT: 
+      - You MUST include the product URL (${product.url || ''}) naturally within the ad text (e.g., as a call-to-action link).
+      - Return ONLY valid JSON with exactly this structure:
       {
         "ad": "the generated text here, formatted appropriately..."
       }
@@ -59,7 +62,13 @@ export async function POST(req: Request) {
       throw new Error('AI response missing "ad" key.');
     }
 
-    return NextResponse.json({ ad: parsed.ad });
+    // Guarantee the URL is present — append it if the model omitted it
+    let adText: string = parsed.ad;
+    if (product.url && !adText.includes(product.url)) {
+      adText = adText.trimEnd() + `\n\n🔗 ${product.url}`;
+    }
+
+    return NextResponse.json({ ad: adText });
   } catch (err: any) {
     console.error('generate-ad API error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
