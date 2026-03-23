@@ -68,6 +68,7 @@ model Product {
   referenceData  ProductReference?
   priceHistory   PriceChangeLog[]
   tags           String[]
+  promotionalCopy Json? // AI generated ads per platform
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 

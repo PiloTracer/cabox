@@ -9,6 +9,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { MarkdownEditor } from './MarkdownEditor';
+import { AdGenerator, PromotionalCopy } from './AdGenerator';
 
 interface Category { id: string; nameEs: string; slug: string; }
 interface ProductData {
@@ -21,6 +22,7 @@ interface ProductData {
   status: string; featured: boolean;
   stock: string;
   images: string;
+  promotionalCopy?: PromotionalCopy | null;
 }
 
 const EMPTY: ProductData = {
@@ -28,7 +30,7 @@ const EMPTY: ProductData = {
   specsEs: '', specsEn: '',
   sku: '', slug: '', price: '', comparePrice: '',
   currency: 'CRC', categoryId: '', status: 'DRAFT',
-  featured: false, stock: '0', images: '',
+  featured: false, stock: '0', images: '', promotionalCopy: null,
 };
 
 type AIStatus = 'idle' | 'analyzing' | 'done' | 'error';
@@ -219,6 +221,7 @@ export default function ProductForm({
       comparePrice: data.comparePrice ? parseFloat(data.comparePrice) : null,
       stock:        parseInt(data.stock, 10) || 0,
       images:       data.images ? data.images.split('\n').map((s) => s.trim()).filter(Boolean) : [],
+      promotionalCopy: data.promotionalCopy,
     };
 
     const res = await fetch(
@@ -792,6 +795,18 @@ export default function ProductForm({
               {field('SKU *', 'sku', 'text', 'Ej: CAM-001')}
               {field('Slug (URL)', 'slug', 'text', 'camiseta-elegante')}
             </div>
+
+            {/* AI Promociones */}
+            <AdGenerator 
+              promotionalCopy={data.promotionalCopy || null}
+              onChange={(val) => set('promotionalCopy', val as any)}
+              productContext={{
+                nameEs: data.nameEs,
+                descriptionEs: data.descriptionEs,
+                price: data.price,
+                currency: data.currency,
+              }}
+            />
           </div>
         </div>
       </form>
