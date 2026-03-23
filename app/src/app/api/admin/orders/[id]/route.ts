@@ -4,8 +4,11 @@ import { z } from 'zod';
 import { requireAdmin } from '@/lib/auth-guard';
 
 const patchSchema = z.object({
-  paymentStatus: z.enum(['PENDING', 'PAID', 'CANCELLED', 'REFUNDED']).optional(),
+  paymentStatus: z.enum(['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED']).optional(),
   orderStatus: z.enum(['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']).optional(),
+  status: z.enum(['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']).optional(),
+  paymentRef: z.string().optional(),
+  notes: z.string().optional()
 });
 
 export async function GET(
@@ -50,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     data: {
       ...(parsed.data.paymentStatus && { paymentStatus: parsed.data.paymentStatus }),
-      ...(parsed.data.orderStatus && { orderStatus: parsed.data.orderStatus }),
+      ...(parsed.data.orderStatus && { status: parsed.data.orderStatus }),
     },
     include: { customer: true, items: true },
   });
@@ -76,6 +79,7 @@ export async function PATCH(
   const order = await prisma.order.update({
     where: { id },
     data: {
+      ...(parsed.data.orderStatus && { status: parsed.data.orderStatus }),
       ...(parsed.data.status && { status: parsed.data.status }),
       ...(parsed.data.paymentStatus && { paymentStatus: parsed.data.paymentStatus }),
       ...(parsed.data.paymentRef !== undefined && { paymentRef: parsed.data.paymentRef }),
