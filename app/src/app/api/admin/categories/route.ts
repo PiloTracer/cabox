@@ -9,6 +9,7 @@ const categorySchema = z.object({
   descriptionEs: z.string().default(''),
   descriptionEn: z.string().default(''),
   slug: z.string().min(1),
+  image: z.string().nullable().default(null),
   parentId: z.string().nullable().default(null)
 });
 
@@ -22,8 +23,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const authErr = await requireAdmin();
+  if (authErr) return authErr;
 
   const body = await req.json();
   const parsed = categorySchema.safeParse(body);
