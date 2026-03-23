@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name cabox.dolcebuy.com www.cabox.dolcebuy.com;
+    server_name cabox.dolcebuy.com www.cabox.dolcebuy.com ca-box.dolcebuy.com www.ca-box.dolcebuy.com;
     return 301 https://cabox.dolcebuy.com$request_uri;
 }
 
@@ -27,7 +27,7 @@ server {
 
 server {
     listen 443 ssl;
-    server_name www.cabox.dolcebuy.com;
+    server_name www.cabox.dolcebuy.com ca-box.dolcebuy.com www.ca-box.dolcebuy.com;
 
     ssl_certificate /etc/letsencrypt/live/cabox.dolcebuy.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/cabox.dolcebuy.com/privkey.pem;
