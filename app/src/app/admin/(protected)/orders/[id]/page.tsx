@@ -33,6 +33,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
         },
       },
       invoices: { orderBy: { createdAt: 'desc' } },
+      tickets: { where: { type: 'PAYMENT_PROOF' }, orderBy: { createdAt: 'desc' } },
     },
   });
 
@@ -165,7 +166,8 @@ export default async function AdminOrderDetailPage({ params }: Props) {
             )}
           </div>
 
-          {/* Shipping address */}
+          {/* Shipping address - only for home delivery */}
+          {addr?.line1 && (
           <div className="admin-card">
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', marginBottom: '0.75rem' }}>Dirección de Envío</h3>
             <address style={{ fontStyle: 'normal', fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--color-text-muted)' }}>
@@ -176,6 +178,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               {addr.country ?? 'CR'}
             </address>
           </div>
+          )}
 
           {/* Payment */}
           <div className="admin-card">
@@ -183,7 +186,9 @@ export default async function AdminOrderDetailPage({ params }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.875rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Método</span>
-                <span style={{ fontWeight: 600 }}>{order.paymentMethod}</span>
+                <span style={{ fontWeight: 600 }}>{
+                  { SINPE: 'SINPE Móvil', BANK_TRANSFER: 'Transferencia', CASH: 'Efectivo', STRIPE: 'Tarjeta', PAYPAL: 'PayPal' }[order.paymentMethod] ?? order.paymentMethod
+                }</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Estado</span>
@@ -222,6 +227,20 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               </div>
             </div>
           </div>
+          {/* Payment proof thumbnails (from tickets) */}
+          {order.tickets.length > 0 && (
+          <div className="admin-card">
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', marginBottom: '0.75rem' }}>📎 Comprobantes de Pago</h3>
+            {order.tickets.map((ticket) => {
+              const urls = ticket.attachments as string[];
+              return urls.map((url, i) => (
+                <a key={`${ticket.id}-${i}`} href={url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginRight: '0.5rem', marginBottom: '0.5rem' }}>
+                  <img src={url} alt={`Comprobante ${i + 1}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '0.375rem', border: '1px solid var(--color-border)' }} />
+                </a>
+              ));
+            })}
+          </div>
+          )}
         </div>
       </div>
     </div>

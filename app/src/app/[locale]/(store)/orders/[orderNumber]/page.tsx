@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import PaymentProofUploader from '@/components/store/PaymentProofUploader';
 
 export const metadata: Metadata = { title: 'Estado de pedido — Cabox' };
 
@@ -17,7 +18,7 @@ const PAY_ES: Record<string, string> = {
 };
 const METHOD_ES: Record<string, string> = {
   SINPE: 'SINPE Móvil', STRIPE: 'Tarjeta', PAYPAL: 'PayPal',
-  TRANSFER: 'Transferencia', CASH: 'Efectivo',
+  BANK_TRANSFER: 'Transferencia bancaria', CASH: 'Efectivo',
 };
 
 function StepDot({ done, active }: { done: boolean; active: boolean }) {
@@ -39,7 +40,11 @@ export default async function OrderStatusPage({ params }: Props) {
 
   const order = await prisma.order.findUnique({
     where: { orderNumber },
-    include: { items: true },
+    include: {
+      items: true,
+      customer: true,
+      tickets: { where: { type: 'PAYMENT_PROOF' }, orderBy: { createdAt: 'desc' }, take: 1 },
+    },
   });
 
   if (!order) notFound();
@@ -92,7 +97,7 @@ export default async function OrderStatusPage({ params }: Props) {
             {order.items.map((item) => (
               <li key={item.id} style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between' }}>
                 <span>{locale === 'es' ? item.nameEs : item.nameEn} <span style={{ color: 'var(--color-text-muted)' }}>×{item.quantity}</span></span>
-                <span className="price">{fmt(Number(item.totalPrice))}</span>
+                <span className="price">{fmt(Number(item.price) * item.quantity)}</span>
               </li>
             ))}
           </ul>
@@ -107,10 +112,10 @@ export default async function OrderStatusPage({ params }: Props) {
         <div className="card card-body">
           <h2 className="checkout-section-title">Información de entrega</h2>
           <dl className="order-dl">
-            <dt>Cliente</dt><dd>{order.customerName}</dd>
-            <dt>Email</dt><dd>{order.customerEmail}</dd>
-            {order.customerPhone && <><dt>Teléfono</dt><dd>{order.customerPhone}</dd></>}
-            <dt>Dirección</dt><dd>{addr.line1}, {addr.city}, {addr.province}</dd>
+            <dt>Cliente</dt><dd>{order.customer?.name ?? '—'}</dd>
+            <dt>Teléfono</dt><dd>{order.customer?.phone ?? '—'}</dd>
+            {order.customer?.email && <><dt>Email</dt><dd>{order.customer.email}</dd></>}
+            {addr?.line1 && <><dt>Dirección</dt><dd>{[addr.line1, addr.city, addr.province].filter(Boolean).join(', ')}</dd></>}
             <dt>Método de pago</dt><dd>{METHOD_ES[order.paymentMethod] ?? order.paymentMethod}</dd>
             <dt>Estado de pago</dt>
             <dd>
@@ -120,15 +125,22 @@ export default async function OrderStatusPage({ params }: Props) {
             </dd>
           </dl>
 
-          {/* SINPE instructions */}
-          {order.paymentMethod === 'SINPE' && order.paymentStatus === 'UNPAID' && (
-            <div className="payment-instructions" style={{ marginTop: '1rem' }}>
-              <strong>📱 Instrucciones SINPE Móvil</strong>
-              <p style={{ marginTop: '0.5rem' }}>
-                Envía <strong>{fmt(Number(order.total))}</strong> al número SINPE de la tienda.
-                Incluye el número de pedido <strong>{order.orderNumber}</strong> como referencia.
-              </p>
-            </div>
+          {/* SINPE / TRANSFER instructions + proof uploader */}
+          {(order.paymentMethod === 'SINPE' || order.paymentMethod === 'BANK_TRANSFER') && order.paymentStatus !== 'COMPLETED' && (
+            <>
+              <div className="payment-instructions" style={{ marginTop: '1rem' }}>
+                <strong>📱 {order.paymentMethod === 'SINPE' ? 'Instrucciones SINPE Móvil' : 'Instrucciones de transferencia'}</strong>
+                <p style={{ marginTop: '0.5rem' }}>
+                  Envía <strong>{fmt(Number(order.total))}</strong> al número de contacto de la tienda.
+                  Incluye el número de pedido <strong>{order.orderNumber}</strong> como referencia.
+                </p>
+              </div>
+              <PaymentProofUploader
+                orderNumber={order.orderNumber}
+                paymentMethod={order.paymentMethod}
+                initialProofs={(order.tickets[0]?.attachments as string[]) ?? []}
+              />
+            </>
           )}
         </div>
       </div>

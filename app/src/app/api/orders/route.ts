@@ -15,7 +15,7 @@ const orderSchema = z.object({
     postalCode: z.string().optional(),
     country: z.string().default('CR'),
   }).optional().nullable(),
-  paymentMethod: z.enum(['CASH', 'SINPE', 'BANK_TRANSFER', 'TRANSFER', 'CREDIT_CARD', 'STRIPE', 'PAYPAL']),
+  paymentMethod: z.enum(['CASH', 'SINPE', 'BANK_TRANSFER', 'CREDIT_CARD', 'PAYPAL']),
   currency: z.enum(['CRC', 'USD']).default('CRC'),
   notes: z.string().optional(),
   couponCode: z.string().optional(),
@@ -43,6 +43,7 @@ function generateOrderNumber(): string {
 }
 
 export async function POST(req: NextRequest) {
+  try {
   const body = await req.json();
   const parsed = orderSchema.safeParse(body);
 
@@ -122,6 +123,10 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(order, { status: 201 });
+  } catch (err) {
+    console.error('[orders] Unexpected error:', err);
+    return NextResponse.json({ message: 'Error al procesar el pedido.' }, { status: 500 });
+  }
 }
 
 export async function GET(req: NextRequest) {

@@ -149,7 +149,7 @@ model Customer {
   id         String   @id @default(cuid())
   name       String
   email      String?
-  phone      String // primary ID for WhatsApp lookup
+  phone      String   @unique // primary ID for WhatsApp lookup
   whatsappId String?
   address    Json? // { line1, line2, city, province, postalCode, country }
   orders     Order[]
@@ -189,6 +189,7 @@ model Order {
   @@index([status])
   @@index([paymentStatus])
   @@index([createdAt(sort: Desc)])
+  tickets         OrderTicket[]
 }
 
 enum OrderStatus {
@@ -213,6 +214,38 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
+}
+
+// ── Ticket system (MVP: proof of payment; future: support threads) ──
+model OrderTicket {
+  id          String       @id @default(cuid())
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  orderNumber String       // denormalised — customer looks up by this
+  type        TicketType   @default(PAYMENT_PROOF)
+  attachments Json         @default("[]") // String[] of /uploads/proofs/* URLs, max 2
+  message     String?      // optional customer note
+  status      TicketStatus @default(OPEN)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([orderId])
+  @@index([orderNumber])
+  @@index([status])
+}
+
+enum TicketType {
+  PAYMENT_PROOF
+  SUPPORT
+  RETURN_REQUEST
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CLOSED
 }
 
 model OrderItem {
@@ -340,6 +373,30 @@ model PriceChangeLog {
 
   @@index([productId])
   @@index([createdAt(sort: Desc)])
+}
+
+// ── Store Settings ───────────────────────────────────────────
+// Singleton row: always key = "default"
+// paymentMethods JSON shape:
+// {
+//   SINPE:    { enabled: bool, phone: string, accountName: string },
+//   TRANSFER: { enabled: bool, bankName: string, iban: string, accountName: string },
+//   CASH:     { enabled: bool },
+//   STRIPE:   { enabled: bool },
+//   PAYPAL:   { enabled: bool },
+// }
+model StoreSettings {
+  key            String   @id @default("default")
+  storeName      String   @default("Cabox")
+  storeTagline   String   @default("Moda Curada de Costa Rica")
+  supportPhone   String   @default("")
+  paymentMethods Json     @default("{}")
+  // General / branding
+  logoUrl        String   @default("/logo.png")
+  heroImageUrl   String   @default("")
+  footerText     String   @default("Moda curada con amor · Costa Rica")
+  themeColor     String   @default("#8B5E3C")
+  updatedAt      DateTime @updatedAt
 }
 
 // ── Full-Text Search ─────────────────────────────────────────

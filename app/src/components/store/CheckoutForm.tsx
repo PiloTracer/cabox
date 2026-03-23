@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCartStore } from '@/stores/cart-store';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -13,13 +13,22 @@ const PROVINCES = [
   'Guanacaste', 'Puntarenas', 'Limón',
 ];
 
-const PAYMENT_METHODS = [
-  { value: 'STRIPE', label: '💳 Tarjeta de crédito/débito' },
-  { value: 'PAYPAL', label: '🅿️ PayPal' },
-  { value: 'SINPE', label: '📱 SINPE Móvil' },
-  { value: 'TRANSFER', label: '🏦 Transferencia bancaria' },
-  { value: 'CASH', label: '💵 Efectivo (en entrega)' },
+// All possible payment methods (label map)
+const ALL_PAYMENT_METHODS = [
+  { value: 'SINPE',        label: '📱 SINPE Móvil' },
+  { value: 'BANK_TRANSFER', label: '🏦 Transferencia bancaria' },
+  { value: 'CASH',          label: '💵 Efectivo (en entrega)' },
+  { value: 'STRIPE',   label: '💳 Tarjeta de crédito/débito' },
+  { value: 'PAYPAL',   label: '🅿️ PayPal' },
 ];
+
+interface PaymentMethodConfig {
+  enabled: boolean;
+  phone?: string;
+  accountName?: string;
+  bankName?: string;
+  iban?: string;
+}
 
 export default function CheckoutForm({ locale }: Props) {
   const t = useTranslations('checkout');
@@ -29,6 +38,27 @@ export default function CheckoutForm({ locale }: Props) {
   const [delivery, setDelivery] = useState<'pickup' | 'delivery'>('pickup');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [enabledMethods, setEnabledMethods] = useState(ALL_PAYMENT_METHODS);
+  // Full config per method — used to display real instructions (phone, IBAN, etc.)
+  const [methodConfig, setMethodConfig] = useState<Record<string, PaymentMethodConfig>>({});
+
+  // Load enabled payment methods + their config from store settings
+  useEffect(() => {
+    fetch('/api/settings/payment-methods')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.methods && Object.keys(data.methods).length) {
+          // Store full config for instruction rendering
+          setMethodConfig(data.methods as Record<string, PaymentMethodConfig>);
+          // Build the display list using the canonical order from ALL_PAYMENT_METHODS
+          const filtered = ALL_PAYMENT_METHODS.filter(m => data.methods[m.value]?.enabled);
+          setEnabledMethods(filtered.length ? filtered : ALL_PAYMENT_METHODS);
+          // Default to first enabled method
+          setMethod(filtered[0]?.value ?? 'SINPE');
+        }
+      })
+      .catch(() => {}); // fail silently — show all methods as fallback
+  }, []);
 
   const needsAddress = delivery === 'delivery';
 
@@ -227,52 +257,50 @@ export default function CheckoutForm({ locale }: Props) {
           </div>
         </div>
 
-        {/* Shipping address */}
-        <div className="card card-body checkout-section" style={{ opacity: needsAddress ? 1 : 0.6, transition: 'opacity 0.2s' }}>
+        {/* Shipping address — only shown when delivery is selected */}
+        {needsAddress && (
+        <div className="card card-body checkout-section">
           <h2 className="checkout-section-title">
             Dirección de entrega
-            {!needsAddress && (
-              <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>
-                (opcional — solo si deseas recibirlo)
-              </span>
-            )}
           </h2>
           <div className="form-group">
-            <label className="form-label" style={needsAddress ? requiredLabelStyle : {}}>
-              Dirección {needsAddress && <span style={requiredDotStyle} />}
+            <label className="form-label" style={requiredLabelStyle}>
+              Dirección <span style={requiredDotStyle} />
             </label>
             <input
               className="input"
               name="address"
               required={needsAddress}
               placeholder="Calle, número, barrio, señas adicionales"
-              style={needsAddress ? requiredInputStyle : optionalInputStyle}
+              style={requiredInputStyle}
             />
           </div>
           <div className="checkout-row">
             <div className="form-group">
-              <label className="form-label" style={needsAddress ? requiredLabelStyle : {}}>
-                Ciudad {needsAddress && <span style={requiredDotStyle} />}
+              <label className="form-label" style={requiredLabelStyle}>
+                Ciudad <span style={requiredDotStyle} />
               </label>
-              <input className="input" name="city" required={needsAddress} style={needsAddress ? requiredInputStyle : optionalInputStyle} />
+              <input className="input" name="city" required={needsAddress} style={requiredInputStyle} />
             </div>
             <div className="form-group">
-              <label className="form-label" style={needsAddress ? requiredLabelStyle : {}}>
-                Provincia {needsAddress && <span style={requiredDotStyle} />}
+              <label className="form-label" style={requiredLabelStyle}>
+                Provincia <span style={requiredDotStyle} />
               </label>
-              <select className="input" name="province" required={needsAddress} style={needsAddress ? requiredInputStyle : optionalInputStyle}>
+              <select className="input" name="province" required={needsAddress} style={requiredInputStyle}>
                 <option value="">Seleccionar…</option>
                 {PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
           </div>
         </div>
+        )}
+
 
         {/* Payment */}
         <div className="card card-body checkout-section">
           <h2 className="checkout-section-title">{t('paymentMethod')}</h2>
           <div className="payment-methods">
-            {PAYMENT_METHODS.map((m) => (
+            {enabledMethods.map((m) => (
               <label key={m.value} className={`payment-method ${method === m.value ? 'active' : ''}`}>
                 <input
                   type="radio"
@@ -287,19 +315,50 @@ export default function CheckoutForm({ locale }: Props) {
             ))}
           </div>
 
-          {/* SINPE instructions */}
+          {/* Payment instructions — dynamic from admin config */}
           {method === 'SINPE' && (
             <div className="payment-instructions">
-              <p>📱 Enviar el monto al <strong>número de SINPE</strong> registrado.</p>
-              <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                Las instrucciones completas se mostrarán al confirmar el pedido.
-              </p>
+              {methodConfig.SINPE?.phone ? (
+                <>
+                  <p>📱 Realiza tu pago por <strong>SINPE Móvil</strong> al número:</p>
+                  <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0.5rem 0', letterSpacing: '0.03em' }}>
+                    {methodConfig.SINPE.phone}
+                  </p>
+                  {methodConfig.SINPE.accountName && (
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                      A nombre de: <strong>{methodConfig.SINPE.accountName}</strong>
+                    </p>
+                  )}
+                  <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                    Envía el comprobante de pago junto con tu número de pedido.
+                  </p>
+                </>
+              ) : (
+                <p>📱 Las instrucciones de SINPE Móvil se mostrarán al confirmar el pedido.</p>
+              )}
             </div>
           )}
 
-          {method === 'TRANSFER' && (
+          {method === 'BANK_TRANSFER' && (
             <div className="payment-instructions">
-              <p>🏦 Transferencia bancaria. Los datos bancarios aparecerán al confirmar el pedido.</p>
+              {methodConfig.BANK_TRANSFER?.iban ? (
+                <>
+                  <p>🏦 Realiza una transferencia bancaria a:</p>
+                  {methodConfig.BANK_TRANSFER.bankName && (
+                    <p style={{ fontWeight: 600, margin: '0.4rem 0 0.2rem' }}>{methodConfig.BANK_TRANSFER.bankName}</p>
+                  )}
+                  <p style={{ fontFamily: 'monospace', fontSize: '0.9rem', background: 'rgba(0,0,0,0.04)', padding: '6px 10px', borderRadius: 6, margin: '0.25rem 0' }}>
+                    {methodConfig.BANK_TRANSFER.iban}
+                  </p>
+                  {methodConfig.BANK_TRANSFER.accountName && (
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                      A nombre de: <strong>{methodConfig.BANK_TRANSFER.accountName}</strong>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p>🏦 Los datos bancarios aparecerán al confirmar el pedido.</p>
+              )}
             </div>
           )}
 

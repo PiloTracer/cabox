@@ -190,3 +190,127 @@ If a change is needed: Stop → Explain WHY → Ask for permission.
   - `lib/pricing.ts` — coupon validation, discount calculation, shipping cost calc
   - `lib/db/` — complex Prisma query helpers (e.g. `getOrderWithDetails()`, `getProductWithStock()`)
 - **Enforcement**: Before writing a formatting/calculation/guard function, search the codebase. If it already exists in `lib/`, import it. If it doesn't, add it to `lib/` and import it.
+
+---
+
+## 👑 KING RULE — Security Is Non-Negotiable
+
+> **THE APPLICATION MUST BE RESILIENT TO HACKING ATTACKS AT ALL LAYERS. SECURITY IS A FIRST-CLASS CONCERN — NOT AN AFTERTHOUGHT.**
+
+### 23. API Security
+
+#### 23.1 Authentication & Authorization
+- Every admin API route MUST call `requireAdmin()` from `lib/auth-guard.ts` — **no exceptions**.
+- Never trust client-provided user IDs or roles: always derive identity from the server-side session (NextAuth JWT).
+- Principle of least privilege: admin API routes must check role (`ADMIN` or `SUPER_ADMIN`) before executing destructive operations.
+- Session tokens: use `httpOnly`, `secure`, `sameSite=lax` cookies (NextAuth default — do not override).
+
+#### 23.2 Input Validation — ZERO TRUST ON ALL INPUTS
+- **ALL API route bodies MUST be validated with Zod** before any processing or DB write.
+- Never pass `req.body` directly to Prisma — always destructure validated fields.
+- Validate query strings and path params with Zod on admin endpoints.
+- Use `z.string().trim().max(N)` on all string fields — prevent oversized payloads.
+- Pattern example (required in every mutation route):
+  ```ts
+  const schema = z.object({ name: z.string().trim().min(1).max(200) });
+  const result = schema.safeParse(await req.json());
+  if (!result.success) return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
+  const { name } = result.data;
+  ```
+
+#### 23.3 SQL Injection Prevention
+- **ONLY use Prisma ORM** for all database access — Prisma parameterizes all queries automatically.
+- If raw SQL is ever required, use **tagged template literals** (`prisma.$queryRaw\`...\``) — NEVER string concatenation.
+- Never interpolate user input into raw SQL strings.
+
+#### 23.4 Rate Limiting (Required on All Public Mutations)
+- The following endpoints MUST have rate limiting via `@upstash/ratelimit`:
+
+| Endpoint | Limit | Key |
+|----------|-------|-----|
+| `POST /api/checkout` | 5 req/min | IP |
+| `POST /api/coupons/apply` | 10 req/min | IP |
+| `POST /api/cart/validate` | 20 req/min | IP |
+| `POST /api/orders` | 5 req/min | IP |
+| `POST /api/ai/*` | 10 req/hour | Admin user ID |
+| Admin login attempts | 5 req/15min | IP |
+
+- Rate limit middleware pattern (in each protected route):
+  ```ts
+  const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+  const { success } = await ratelimit.limit(ip);
+  if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  ```
+
+#### 23.5 CSRF Protection
+- Next.js App Router API routes with `Content-Type: application/json` are inherently CSRF-safe (browsers cannot send JSON cross-origin without CORS).
+- For form submissions using `multipart/form-data` or `application/x-www-form-urlencoded`, verify the `Origin` header equals `NEXT_PUBLIC_APP_URL`.
+- Never use GET routes for mutations (state changes, writes, deletes).
+
+#### 23.6 Cross-Site Scripting (XSS) Prevention
+- React auto-escapes JSX by default — **never use `dangerouslySetInnerHTML`** unless absolutely required and sanitized with `DOMPurify`.
+- Never inject user-provided content into `<script>` tags or event handlers.
+- Content-Security-Policy header MUST be set in `next.config.mjs` (see `next.config.mjs` security headers section).
+- Do NOT trust `req.headers.referer` or `req.headers.origin` as authentication — these can be spoofed.
+
+#### 23.7 Secret Management
+- ALL secrets MUST live in `.env.dev` (dev) or `.env.prd` (production) — never in source code.
+- `NEXT_PUBLIC_` prefix ONLY for values that are intentionally public (e.g., Stripe publishable key, PayPal client ID).
+- Never log secrets, tokens, or passwords — use `[REDACTED]` if a log line needs to reference a secret field.
+- Rotate secrets immediately if accidentally committed to git.
+- `.env.*` files MUST be in `.gitignore` — verify on every new file creation.
+
+#### 23.8 Output Encoding
+- When generating XML feeds (`/api/feeds/*`), escape all user-provided data with an XML entity encoder.
+- When generating HTML email templates, use React Email (already sanitized) — never raw string concatenation.
+- PDF generation with `@react-pdf/renderer`: do NOT render raw user HTML — only use the layout primitives.
+
+#### 23.9 HTTP Security Headers (Required in `next.config.mjs`)
+All production responses MUST include:
+```
+Content-Security-Policy:      default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.paypal.com https://js.stripe.com; img-src 'self' data: blob: https:; frame-src https://js.stripe.com https://www.paypal.com;
+Strict-Transport-Security:    max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options:       nosniff
+X-Frame-Options:              DENY
+Referrer-Policy:              strict-origin-when-cross-origin
+Permissions-Policy:           camera=(), microphone=(), geolocation=()
+X-XSS-Protection:             1; mode=block
+```
+
+#### 23.10 Dependency Security
+- Run `npm audit` before every production deployment — fix `high` and `critical` vulnerabilities.
+- Pin exact versions of security-critical packages (`bcryptjs`, `next-auth`, `zod`).
+- Keep `next`, `react`, and `prisma` on the latest patch release within the major version.
+
+#### 23.11 Error Handling — Never Leak Internals
+- API routes MUST never return raw Prisma error messages, stack traces, or internal paths in production.
+- Use a wrapper for all API errors:
+  ```ts
+  // ✅ Safe
+  return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+  // ❌ NEVER
+  return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
+  ```
+- Log full errors server-side (Sentry) — return only user-safe messages to the client.
+
+#### 23.12 File Upload Security (when implemented)
+- Validate MIME type server-side (never trust `Content-Type` header alone — inspect file magic bytes).
+- Restrict allowed extensions: `jpg`, `jpeg`, `png`, `webp` for images.
+- Set max file size limit (5MB) in the API route before storing.
+- Store uploads in Supabase private buckets; generate signed URLs with short TTLs (15 minutes).
+- Never store uploaded files with user-provided filenames — always generate a UUID-based path.
+
+#### 23.13 Stripe & PayPal Webhooks
+- **Always verify webhook signatures** before processing payment events:
+  - Stripe: `stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)`
+  - PayPal: Verify IPN with PayPal's verification endpoint.
+- Return `200` immediately for webhook endpoints to prevent retries — process asynchronously.
+- Log all payment webhook events (event type + order ID) for audit purposes.
+
+#### 23.14 WhatsApp & External API Calls
+- Validate the `X-Hub-Signature-256` header on incoming WhatsApp webhooks.
+- Use `WHATSAPP_VERIFY_TOKEN` for the Meta webhook verification endpoint.
+- Apply outbound request timeouts (10s) to all external API calls to prevent hanging.
+
+> **SECURITY REVIEWS**: Before launching Phase 3 (Checkout) and Phase 6 (Payments/Invoicing), perform a security review checklist against each rule above. Document findings in `.ai/context/SECURITY_REVIEW.md`.
+
