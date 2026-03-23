@@ -66,11 +66,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       ...(data.price !== undefined && { price: data.price }),
       ...(data.comparePrice !== undefined && { compareAtPrice: data.comparePrice }),
       ...(data.currency !== undefined && { currency: data.currency }),
-      ...(data.categoryId !== undefined && (
-        data.categoryId
-          ? { category: { connect: { id: data.categoryId } } }
-          : { category: { disconnect: true } }
-      )),
+      ...(data.categoryId !== undefined && data.categoryId && { categoryId: data.categoryId }),
       ...(data.status !== undefined && { status: data.status }),
       ...(data.featured !== undefined && { featured: data.featured }),
       ...(data.stock !== undefined && { stock: data.stock }),
