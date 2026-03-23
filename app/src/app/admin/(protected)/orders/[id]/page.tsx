@@ -125,7 +125,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
                 order.discountAmount && Number(order.discountAmount) > 0 ? ['Descuento', `−${formatCRC(order.discountAmount)}`] : null,
                 ['Envío', formatCRC(order.shippingCost)],
                 ['Impuesto', formatCRC(order.tax)],
-              ].filter(Boolean).map(([label, value]) => (
+              ].filter(Boolean).map(([label, value]: [string, string]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
                   <span>{label}</span><span>{value}</span>
                 </div>
