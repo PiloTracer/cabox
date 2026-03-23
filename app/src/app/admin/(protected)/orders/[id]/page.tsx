@@ -187,7 +187,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Método</span>
                 <span style={{ fontWeight: 600 }}>{
-                  { SINPE: 'SINPE Móvil', BANK_TRANSFER: 'Transferencia', CASH: 'Efectivo', STRIPE: 'Tarjeta', PAYPAL: 'PayPal' }[order.paymentMethod] ?? order.paymentMethod
+                  ({ SINPE: 'SINPE Móvil', BANK_TRANSFER: 'Transferencia', CASH: 'Efectivo', CREDIT_CARD: 'Tarjeta', PAYPAL: 'PayPal' } as Record<string, string>)[order.paymentMethod] ?? order.paymentMethod
                 }</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
