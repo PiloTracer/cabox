@@ -22,17 +22,36 @@ export const authOptions: NextAuthOptions = {
 
         const { email, password } = parsed.data;
 
-        if (email !== process.env.ADMIN_EMAIL) return null;
+        // Fallback to initial ENV admin if the standard DB query isn't set up yet
+        if (email === process.env.ADMIN_EMAIL) {
+          const hash = process.env.ADMIN_PASSWORD_HASH ?? '';
+          const isValid = await bcrypt.compare(password, hash);
+          if (isValid) {
+            return {
+              id: 'admin',
+              email,
+              name: 'Super Admin',
+              role: 'ADMIN',
+            };
+          }
+        }
 
-        const hash = process.env.ADMIN_PASSWORD_HASH ?? '';
-        const isValid = await bcrypt.compare(password, hash);
+        // Check against the database
+        const { prisma } = await import('@/lib/prisma');
+        const user = await prisma.user.findUnique({ where: { email } });
+        
+        if (!user || user.role !== 'ADMIN') {
+          return null;
+        }
+
+        const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) return null;
 
         return {
-          id: 'admin',
-          email,
-          name: 'Admin',
-          role: 'admin',
+          id: user.id,
+          email: user.email,
+          name: user.name || 'Admin',
+          role: user.role,
         };
       },
     }),

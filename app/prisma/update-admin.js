@@ -1,0 +1,30 @@
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+
+const prisma = new PrismaClient();
+
+async function main() {
+  const email = 'alejandro@aiepicstudio.com';
+  const plainPassword = 'admin123';
+  const passwordHash = await bcrypt.hash(plainPassword, 10);
+
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: {
+      passwordHash,
+      role: 'ADMIN',
+      name: 'Alejandro Castro'
+    },
+    create: {
+      email,
+      passwordHash,
+      role: 'ADMIN',
+      name: 'Alejandro Castro'
+    }
+  });
+  console.log('Successfully updated/created admin:', user.email);
+}
+
+main()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

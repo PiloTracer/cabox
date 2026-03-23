@@ -32,13 +32,17 @@ const links = [
   { href: '/admin/settings', label: 'Configuración', icon: Settings },
 ];
 
-
 export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
     <aside className="admin-sidebar">
-      <div className="admin-sidebar-logo">⬡ Cabox</div>
+      <div className="admin-sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span className="logo-icon">⬡</span>
+          <span className="logo-text">Cabox</span>
+        </div>
+      </div>
 
       <nav className="admin-nav">
         {links.map(({ href, label, icon: Icon }) => {
@@ -51,20 +55,19 @@ export default function AdminSidebar() {
               className={`admin-nav-link ${active ? 'active' : ''}`}
             >
               <Icon size={18} />
-              {label}
+              <span className="nav-label">{label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+      <div className="admin-logout-wrap">
         <button
-          className="admin-nav-link"
-          style={{ width: '100%', border: 'none', cursor: 'pointer', background: 'transparent' }}
+          className="admin-nav-link logout-btn"
           onClick={() => signOut({ callbackUrl: '/admin/login' })}
         >
           <LogOut size={18} />
-          Cerrar sesión
+          <span className="nav-label">Cerrar sesión</span>
         </button>
       </div>
     </aside>
