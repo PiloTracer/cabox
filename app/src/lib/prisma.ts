@@ -8,7 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 // PgBouncer in transaction mode conflicts with SCRAM-SHA-256 auth in PostgreSQL 16.
 // PgBouncer is still useful for connection pooling in production; in dev we
 // route around it to avoid the auth mismatch.
-const url = process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL;
+const url = process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL ?? 'postgresql://dummy:dummy@localhost/dummy';
 
 export const prisma =
   globalForPrisma.prisma ??
