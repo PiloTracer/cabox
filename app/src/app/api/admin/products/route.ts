@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
 
   const products = await prisma.product.findMany({
     where: {
-      ...(status ? { status } : {}),
+      ...(status ? { status: status as import('@prisma/client').ProductStatus } : {}),
       ...(cat ? { category: { slug: cat } } : {}),
     },
     include: { category: true },
