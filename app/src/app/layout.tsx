@@ -27,7 +27,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         {/* Dynamic brand color from StoreSettings — overrides CSS defaults */}
-        {/* @ts-expect-error — async server component inside JSX */}
         <ThemeScript />
       </head>
       <body className={`${inter.variable} ${playfair.variable}`}>
