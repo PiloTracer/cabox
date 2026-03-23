@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireAdmin } from '@/lib/auth-guard';
 
 const promoSchema = z.object({
   nameEs: z.string().min(1),
@@ -24,16 +23,16 @@ const promoSchema = z.object({
 });
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   const promotions = await prisma.promotion.findMany({ orderBy: { startsAt: 'desc' } });
   return NextResponse.json(promotions);
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   const parsed = promoSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ errors: parsed.error.flatten() }, { status: 400 });

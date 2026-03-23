@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireAdmin } from '@/lib/auth-guard';
 
-const updateSchema = z.object({
+const patchSchema = z.object({
   nameEs: z.string().min(1).optional(),
   nameEn: z.string().optional(),
-  descriptionEs: z.string().nullable().optional(),
-  descriptionEn: z.string().nullable().optional(),
+  descriptionEs: z.string().optional(),
+  descriptionEn: z.string().optional(),
   sku: z.string().min(1).optional(),
   slug: z.string().min(1).optional(),
   price: z.number().positive().optional(),
@@ -18,31 +17,30 @@ const updateSchema = z.object({
   status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
   featured: z.boolean().optional(),
   stock: z.number().int().min(0).optional(),
-  images: z.array(z.string()).optional(),
+  images: z.array(z.string().url()).optional(),
+  promotionalCopy: z.any().optional().nullable(),
+  promotionalMedia: z.any().optional().nullable(),
 });
 
-interface Params { params: Promise<{ id: string }> }
-
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  return session ?? null;
-}
+interface Params { params: { id: string } }
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  if (!await requireAdmin()) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
-  const { id } = await params;
+  const { id } = params;
   const product = await prisma.product.findUnique({ where: { id }, include: { category: true } });
   if (!product) return NextResponse.json({ message: 'Not found' }, { status: 404 });
   return NextResponse.json(product);
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  if (!await requireAdmin()) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   const { id } = await params;
   const body = await req.json();
-  const parsed = updateSchema.safeParse(body);
+  const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
     console.error('[PUT /api/admin/products] Zod errors:', JSON.stringify(parsed.error.flatten(), null, 2));
     return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 400 });
@@ -68,10 +66,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
       ...(data.price !== undefined && { price: data.price }),
       ...(data.comparePrice !== undefined && { compareAtPrice: data.comparePrice }),
       ...(data.currency !== undefined && { currency: data.currency }),
-      ...(data.categoryId !== undefined && { categoryId: data.categoryId || null }),
+      ...(data.categoryId !== undefined && (
+        data.categoryId
+          ? { category: { connect: { id: data.categoryId } } }
+          : { category: { disconnect: true } }
+      )),
       ...(data.status !== undefined && { status: data.status }),
       ...(data.featured !== undefined && { featured: data.featured }),
       ...(data.stock !== undefined && { stock: data.stock }),
+      ...(data.promotionalCopy !== undefined && { promotionalCopy: data.promotionalCopy }),
+      ...(data.promotionalMedia !== undefined && { promotionalMedia: data.promotionalMedia }),
       ...(data.images !== undefined && { 
         images: {
           deleteMany: {},
@@ -85,7 +89,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  if (!await requireAdmin()) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   const { id } = await params;
 

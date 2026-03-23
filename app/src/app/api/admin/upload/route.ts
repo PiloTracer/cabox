@@ -3,7 +3,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { requireAdmin } from '@/lib/auth-guard';
 
-export const config = { api: { bodyParser: false } };
+
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB

@@ -145,7 +145,7 @@ export default async function ProductDetailPage({ params }: Props) {
           )}
 
           {/* Actions */}
-          <div className="product-actions">
+          <div className="product-actions" style={{ marginBottom: '2rem' }}>
             <AddToCartButton
               product={{
                 id: product.id,
@@ -172,6 +172,82 @@ export default async function ProductDetailPage({ params }: Props) {
               </a>
             )}
           </div>
+
+          {/* Promotional Ads */}
+          {(() => {
+            const publicAds = Array.isArray(product.promotionalMedia) 
+              ? product.promotionalMedia.filter((m: any) => m.isPublic) 
+              : [];
+            
+            if (publicAds.length === 0) return null;
+
+            return (
+              <div className="product-offline-ads" style={{ marginTop: '2.5rem' }}>
+                <h3 style={{ fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+                  {locale === 'es' ? 'Material Promocional' : 'Promotional Material'}
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: publicAds.length === 1
+                    ? '1fr'
+                    : 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
+                  gap: '1rem',
+                }}>
+                  {publicAds.map((ad: any) => (
+                    <div
+                      key={ad.id}
+                      style={{
+                        position: 'relative',
+                        borderRadius: '0.75rem',
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 16px rgba(0,0,0,0.10)',
+                        background: '#f4f4f5',
+                        lineHeight: 0,
+                      }}
+                    >
+                      <img
+                        src={ad.url}
+                        alt={locale === 'es' ? 'Material promocional' : 'Promotional material'}
+                        style={{
+                          width: '100%',
+                          height: publicAds.length === 1 ? 'auto' : '320px',
+                          objectFit: publicAds.length === 1 ? 'contain' : 'cover',
+                          display: 'block',
+                        }}
+                      />
+                      {/* Download pill — top-right overlay, always visible */}
+                      <a
+                        href={ad.url}
+                        download={`${product.sku}-promo`}
+                        title={locale === 'es' ? 'Descargar imagen' : 'Download image'}
+                        style={{
+                          position: 'absolute',
+                          top: '0.75rem',
+                          right: '0.75rem',
+                          lineHeight: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.45rem 0.9rem',
+                          borderRadius: '2rem',
+                          background: 'rgba(0,0,0,0.52)',
+                          backdropFilter: 'blur(6px)',
+                          WebkitBackdropFilter: 'blur(6px)',
+                          color: '#fff',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                          letterSpacing: '0.01em',
+                        }}
+                      >
+                        ⬇ {locale === 'es' ? 'Descargar' : 'Download'}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

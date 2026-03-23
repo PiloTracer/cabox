@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireAdmin } from '@/lib/auth-guard';
 
 const patchSchema = z.object({
   nameEn: z.string().min(1).optional(),
@@ -11,19 +10,14 @@ const patchSchema = z.object({
   parentId: z.string().nullable().optional(),
 });
 
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session) return false;
-  return true;
-}
-
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  if (!(await requireAdmin())) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
-  const { id } = await params;
+  const { id } = params;
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ errors: parsed.error.flatten() }, { status: 400 });

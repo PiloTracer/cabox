@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireAdmin } from '@/lib/auth-guard';
 
 const productSchema = z.object({
   nameEs: z.string().min(1),
@@ -20,18 +19,13 @@ const productSchema = z.object({
   stock: z.number().int().min(0).default(0),
   // images: accept URL strings for convenience; server converts to ProductImage records
   images: z.array(z.string().url()).default([]),
+  promotionalCopy: z.any().optional().nullable(),
+  promotionalMedia: z.any().optional().nullable(),
 });
 
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session) return null;
-  return session;
-}
-
 export async function POST(req: NextRequest) {
-  if (!await requireAdmin()) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   const body = await req.json();
   const parsed = productSchema.safeParse(body);
@@ -66,6 +60,8 @@ export async function POST(req: NextRequest) {
       status:        data.status,
       featured:      data.featured,
       stock:         data.stock,
+      promotionalCopy: data.promotionalCopy,
+      promotionalMedia: data.promotionalMedia,
       images: {
         create: data.images.map((url, i) => ({ url, position: i })),
       },
@@ -77,9 +73,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!await requireAdmin()) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');

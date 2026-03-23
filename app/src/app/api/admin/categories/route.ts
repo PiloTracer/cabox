@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireAdmin } from '@/lib/auth-guard';
 
 const categorySchema = z.object({
-  slug: z.string().min(1).regex(/^[a-z0-9-]+$/, 'Only lowercase letters, numbers and hyphens'),
-  nameEn: z.string().min(1),
   nameEs: z.string().min(1),
-  image: z.string().url().optional().or(z.literal('')),
-  parentId: z.string().optional().nullable(),
+  nameEn: z.string().default(''),
+  descriptionEs: z.string().default(''),
+  descriptionEn: z.string().default(''),
+  slug: z.string().min(1),
+  parentId: z.string().nullable().default(null)
 });
 
 export async function GET() {

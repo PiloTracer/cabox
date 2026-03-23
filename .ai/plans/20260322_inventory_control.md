@@ -2,7 +2,7 @@
 **File:** `.ai/plans/20260322_inventory_control.md`  
 **Author:** AI Dev Session  
 **Date:** 2026-03-22  
-**Status:** 📋 Planned (not yet implemented)
+**Status:** ⚙️ Partially Implemented — Backend API ✅ Complete | Admin UI ❌ Not Started
 
 ---
 

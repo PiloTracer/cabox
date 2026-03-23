@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireAdmin } from '@/lib/auth-guard';
 
 const adjustSchema = z.object({
   productId: z.string(),
@@ -11,9 +10,9 @@ const adjustSchema = z.object({
   note: z.string().optional(),
 });
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+export async function GET(req: NextRequest) {
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   // Aggregate current stock per product using InventoryRecord ledger
   const records = await prisma.inventoryRecord.groupBy({
@@ -38,8 +37,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   const body = await req.json();
   const parsed = adjustSchema.safeParse(body);

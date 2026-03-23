@@ -36,6 +36,8 @@ export default async function EditProductPage({ params }: Props) {
     status:        product.status,
     featured:      product.featured,
     stock:         String(product.stock ?? 0),
+    promotionalCopy: product.promotionalCopy,
+    promotionalMedia: product.promotionalMedia,
     // Map ProductImage[] → newline-separated URL string for form textarea
     images: product.images.map((img) => img.url).join('\n'),
   };

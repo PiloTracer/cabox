@@ -9,7 +9,8 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { MarkdownEditor } from './MarkdownEditor';
-import { AdGenerator, PromotionalCopy } from './AdGenerator';
+import { AdGenerator, PromotionalAd } from './AdGenerator';
+import AdMediaGallery, { PromotionalMedia } from './AdMediaGallery';
 
 interface Category { id: string; nameEs: string; slug: string; }
 interface ProductData {
@@ -22,7 +23,8 @@ interface ProductData {
   status: string; featured: boolean;
   stock: string;
   images: string;
-  promotionalCopy?: PromotionalCopy | null;
+  promotionalCopy?: PromotionalAd[] | null;
+  promotionalMedia?: PromotionalMedia[] | null;
 }
 
 const EMPTY: ProductData = {
@@ -30,7 +32,7 @@ const EMPTY: ProductData = {
   specsEs: '', specsEn: '',
   sku: '', slug: '', price: '', comparePrice: '',
   currency: 'CRC', categoryId: '', status: 'DRAFT',
-  featured: false, stock: '0', images: '', promotionalCopy: null,
+  featured: false, stock: '0', images: '', promotionalCopy: [], promotionalMedia: [],
 };
 
 type AIStatus = 'idle' | 'analyzing' | 'done' | 'error';
@@ -149,6 +151,8 @@ export default function ProductForm({
           featured:      Boolean(json.featured ?? d.featured),
           categoryId:    matchCategory(json.category as string, categories) || d.categoryId,
           images:        newImagesStr,
+          promotionalCopy: json.promotionalCopy || d.promotionalCopy,
+          promotionalMedia: json.promotionalMedia || d.promotionalMedia,
         };
       });
 
@@ -215,17 +219,34 @@ export default function ProductForm({
     setLoading(true);
     setError('');
 
-    const payload = {
-      ...data,
-      price:        parseFloat(data.price),
+    const payload: any = {
+      nameEs: data.nameEs,
+      nameEn: data.nameEn,
+      descriptionEs: data.descriptionEs,
+      descriptionEn: data.descriptionEn,
+      specsEs: data.specsEs,
+      specsEn: data.specsEn,
+      sku: data.sku,
+      slug: data.slug,
+      price: parseFloat(data.price),
       comparePrice: data.comparePrice ? parseFloat(data.comparePrice) : null,
-      stock:        parseInt(data.stock, 10) || 0,
-      images:       data.images ? data.images.split('\n').map((s) => s.trim()).filter(Boolean) : [],
-      promotionalCopy: data.promotionalCopy,
+      currency: data.currency,
+      categoryId: data.categoryId || null,
     };
 
+    if (data.status) payload.status = data.status;
+    if (data.featured !== undefined) payload.featured = data.featured;
+    if (data.stock) payload.stock = Number(data.stock);
+    
+    const imagesList = data.images.split('\n').filter(Boolean);
+    if (imagesList.length > 0) payload.images = imagesList;
+
+    payload.promotionalCopy = data.promotionalCopy || [];
+    payload.promotionalMedia = data.promotionalMedia || [];
+
+    const url = isEdit ? `/api/admin/products/${productId}` : '/api/admin/products';
     const res = await fetch(
-      isEdit ? `/api/admin/products/${productId}` : '/api/admin/products',
+      url,
       { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
     );
 
@@ -807,7 +828,30 @@ export default function ProductForm({
                 currency: data.currency,
               }}
             />
+
+            <AdMediaGallery
+              media={data.promotionalMedia || []}
+              onChange={(media) => set('promotionalMedia', media as any)}
+            />
+
           </div>
+        </div>
+
+        {/* ── Sticky action bar at bottom ── */}
+        <div style={{
+          display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+          gap: '1rem', padding: '1.25rem 1.5rem',
+          marginTop: '1.5rem',
+          background: 'var(--color-bg-base)',
+          borderTop: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          position: 'sticky', bottom: 0, zIndex: 10,
+        }}>
+          {error && <span style={{ color: 'var(--color-danger)', fontSize: '0.875rem' }}>{error}</span>}
+          <Link href="/admin/products" className="btn btn-ghost btn-sm">Cancelar</Link>
+          <button type="submit" form="product-form" className="btn btn-primary" disabled={loading}>
+            {loading ? <><Loader size={16} className="spin" /> Guardando…</> : <><Save size={16} /> Guardar producto</>}
+          </button>
         </div>
       </form>
     </div>
