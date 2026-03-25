@@ -9,5 +9,10 @@ RUN npm install --legacy-peer-deps
 COPY prisma ./prisma
 RUN npx prisma generate
 
+# Auto-migration entrypoint
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 EXPOSE 3000
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["npm", "run", "dev"]

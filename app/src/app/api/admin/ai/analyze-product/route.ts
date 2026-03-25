@@ -21,18 +21,37 @@ export async function POST(req: NextRequest) {
 
   const formData  = await req.formData();
   const imageFile = formData.get('image') as File | null;
+  const additionalImages = formData.getAll('additionalImage') as File[];
 
   if (!imageFile) {
     return NextResponse.json({ message: 'Se requiere un archivo de imagen.' }, { status: 400 });
   }
 
-  // Convert File → base64 for Gemini inlineData
+  // Convert primary image → base64 for Gemini inlineData
   const bytes      = await imageFile.arrayBuffer();
   const base64Data = Buffer.from(bytes).toString('base64');
   const mimeType   = (imageFile.type || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp';
 
+  // Convert additional images to Gemini inline parts
+  const additionalParts: { inlineData: { mimeType: string; data: string } }[] = [];
+  for (const addImg of additionalImages) {
+    if (!addImg || typeof addImg === 'string') continue;
+    const addBytes = await addImg.arrayBuffer();
+    additionalParts.push({
+      inlineData: {
+        mimeType: addImg.type || 'image/jpeg',
+        data: Buffer.from(addBytes).toString('base64'),
+      },
+    });
+  }
+
+  const totalImages = 1 + additionalParts.length;
+  const multiImageNote = totalImages > 1
+    ? `\nIMPORTANT: I'm providing ${totalImages} product photos. Analyze ALL of them together to identify the product with maximum accuracy. Use all visual cues across the images to generate the most complete and detailed response.`
+    : '';
+
   const prompt = `You are an expert in fashion, e-commerce, and retail in Costa Rica.
-Analyze this product image with precision and return ONLY a valid JSON object.
+Analyze this product image with precision and return ONLY a valid JSON object.${multiImageNote}
 
 The text fields MUST use GitHub-flavored Markdown formatting:
 - Use **bold** for key features or material names
@@ -63,11 +82,15 @@ CRITICAL RULES:
 - Price MUST reflect Costa Rican market pricing, never US/EU prices.`;
 
   try {
+    // Build parts: primary image + additional images + prompt text
+    const geminiParts = [
+      { inlineData: { mimeType, data: base64Data } },
+      ...additionalParts,
+      { text: prompt },
+    ];
+
     const rawText = await generateContent(
-      [
-        { inlineData: { mimeType, data: base64Data } },
-        { text: prompt },
-      ],
+      geminiParts,
       'gemini-2.5-flash'
     );
     const cleaned = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();

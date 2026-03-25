@@ -50,6 +50,8 @@ model Product {
   nameEs         String
   descriptionEn  String         @db.Text
   descriptionEs  String         @db.Text
+  specsEs        String         @default("") @db.Text
+  specsEn        String         @default("") @db.Text
   price          Decimal        @db.Decimal(10, 2)
   compareAtPrice Decimal?       @db.Decimal(10, 2)
   costPrice      Decimal?       @db.Decimal(10, 2)

@@ -37,7 +37,7 @@ const EMPTY: ProductData = {
 
 type AIStatus = 'idle' | 'analyzing' | 'done' | 'error';
 
-interface FoundImage { url: string; title: string; thumb: string; }
+interface FoundImage { url: string; title: string; thumb: string; isLocal?: boolean; }
 
 export default function ProductForm({
   initial, productId, categories,
@@ -63,6 +63,7 @@ export default function ProductForm({
   const [foundImages,setFoundImages] = useState<FoundImage[]>([]);
   const [selectedImgs,setSelectedImgs] = useState<Set<string>>(new Set());
   const [searchingImages, setSearchingImages] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   const isEdit = Boolean(productId);
 
@@ -92,12 +93,102 @@ export default function ProductForm({
     setAIPreview(url);
   }, []);
 
-  const onDrop = useCallback((e: React.DragEvent) => {
+
+
+  // ─── File → data URL helper ──────────────────────────────────
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  // ─── Short random name generator (MAC-address style) ─────────
+  const randomShortName = (ext: string) => {
+    const hex = () => Math.floor(Math.random() * 256).toString(16).toUpperCase().padStart(2, '0');
+    return `${hex()}${hex()}-${hex()}${hex()}.${ext}`;
+  };
+
+  // Keep a ref to handleImageFile so the paste useEffect deps stay stable
+  const handleImageFileRef = useRef(handleImageFile);
+  handleImageFileRef.current = handleImageFile;
+
+  // ─── Clipboard paste handler (document-level so it works regardless of focus) ──
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (!e.clipboardData) return;
+      const items = Array.from(e.clipboardData.items);
+      const imageItems = items.filter(item => item.type.startsWith('image/'));
+      if (imageItems.length === 0) return;
+      e.preventDefault();
+
+      let isFirst = true;
+      for (const item of imageItems) {
+        const rawFile = item.getAsFile();
+        if (!rawFile) continue;
+
+        // Rename to short MAC-style name
+        const ext = rawFile.type.split('/')[1] || 'png';
+        const shortName = randomShortName(ext);
+        const renamedFile = new File([rawFile], shortName, { type: rawFile.type });
+
+        // First pasted image → also populate AI panel (same as drag/drop upload)
+        if (isFirst) {
+          handleImageFileRef.current(renamedFile);
+          isFirst = false;
+        }
+
+        const dataUrl = await fileToDataUrl(renamedFile);
+        // Add to gallery as a local image (pre-selected) and sync to data.images
+        const localEntry: FoundImage = { url: dataUrl, title: shortName, thumb: dataUrl, isLocal: true };
+        setFoundImages(prev => [localEntry, ...prev.filter(i => i.url !== dataUrl)]);
+        setSelectedImgs(prev => new Set([...prev, dataUrl]));
+        setData(d => {
+          const existing = d.images ? d.images.split('\n').filter(Boolean) : [];
+          if (existing.includes(dataUrl)) return d;
+          return { ...d, images: [...existing, dataUrl].join('\n') };
+        });
+        setUploadedFiles(prev => [...prev, renamedFile]);
+      }
+    };
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, []);
+
+  // ─── Multi-file upload handling ──────────────────────────────
+  const handleMultiFiles = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (fileArray.length === 0) return;
+
+    const newEntries: FoundImage[] = [];
+    const newUrls: string[] = [];
+    for (const file of fileArray) {
+      const dataUrl = await fileToDataUrl(file);
+      const shortName = `${Math.random().toString(16).slice(2, 6).toUpperCase()}-${Math.random().toString(16).slice(2, 6).toUpperCase()}.${file.name.split('.').pop() || 'png'}`;
+      newEntries.push({ url: dataUrl, title: shortName, thumb: dataUrl, isLocal: true });
+      newUrls.push(dataUrl);
+    }
+
+    // Add to gallery as local images, pre-selected, and sync to data.images
+    setFoundImages(prev => [...newEntries, ...prev.filter(i => !newUrls.includes(i.url))]);
+    setSelectedImgs(prev => new Set([...prev, ...newUrls]));
+    setData(d => {
+      const existing = d.images ? d.images.split('\n').filter(Boolean) : [];
+      const toAdd = newUrls.filter(u => !existing.includes(u));
+      return { ...d, images: [...existing, ...toAdd].join('\n') };
+    });
+    setUploadedFiles(prev => [...prev, ...fileArray]);
+  }, []);
+
+  const onDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleImageFile(file);
-  }, [handleImageFile]);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) return;
+    handleImageFile(files[0]);
+    handleMultiFiles(files);
+  }, [handleImageFile, handleMultiFiles]);
 
   const clearAI = () => {
     setAIFile(null);
@@ -119,6 +210,11 @@ export default function ProductForm({
     const fd = new FormData();
     fd.append('image', aiFile);
 
+    // Send additional uploaded/pasted images for richer AI analysis
+    uploadedFiles.forEach((file) => {
+      fd.append('additionalImage', file);
+    });
+
     try {
       const res  = await fetch('/api/admin/ai/analyze-product', { method: 'POST', body: fd });
       const json = await res.json();
@@ -129,39 +225,40 @@ export default function ProductForm({
         return;
       }
 
-      // Auto-fill all form fields
-      setData((d) => {
-        const first3Images = (json.images ?? []).slice(0, 3).map((img: any) => img.url);
-        const existingImgs = d.images ? d.images.split('\n').filter(Boolean) : [];
-        const uniqueNew = first3Images.filter((url: string) => !existingImgs.includes(url));
-        const newImagesStr = [...existingImgs, ...uniqueNew].join('\n');
-
-        return {
-          ...d,
-          nameEs:        json.nameEs        || d.nameEs,
-          nameEn:        json.nameEn        || d.nameEn,
-          descriptionEs: json.descriptionEs || d.descriptionEs,
-          descriptionEn: json.descriptionEn || d.descriptionEn,
-          specsEs:       json.specsEs       || d.specsEs,
-          specsEn:       json.specsEn       || d.specsEn,
-          sku:           json.sku           || d.sku,
-          slug:          json.slug          || d.slug,
-          price:         json.suggestedPriceCRC ? String(json.suggestedPriceCRC) : d.price,
-          comparePrice:  json.suggestedCompareAtPriceCRC ? String(json.suggestedCompareAtPriceCRC) : d.comparePrice,
-          featured:      Boolean(json.featured ?? d.featured),
-          categoryId:    matchCategory(json.category as string, categories) || d.categoryId,
-          images:        newImagesStr,
-          promotionalCopy: json.promotionalCopy || d.promotionalCopy,
-          promotionalMedia: json.promotionalMedia || d.promotionalMedia,
-        };
-      });
+      // Auto-fill form fields (do NOT auto-add images to data.images anymore)
+      setData((d) => ({
+        ...d,
+        nameEs:        json.nameEs        || d.nameEs,
+        nameEn:        json.nameEn        || d.nameEn,
+        descriptionEs: json.descriptionEs || d.descriptionEs,
+        descriptionEn: json.descriptionEn || d.descriptionEn,
+        specsEs:       json.specsEs       || d.specsEs,
+        specsEn:       json.specsEn       || d.specsEn,
+        sku:           json.sku           || d.sku,
+        slug:          json.slug          || d.slug,
+        price:         json.suggestedPriceCRC ? String(json.suggestedPriceCRC) : d.price,
+        comparePrice:  json.suggestedCompareAtPriceCRC ? String(json.suggestedCompareAtPriceCRC) : d.comparePrice,
+        featured:      Boolean(json.featured ?? d.featured),
+        categoryId:    matchCategory(json.category as string, categories) || d.categoryId,
+        promotionalCopy: json.promotionalCopy || d.promotionalCopy,
+        promotionalMedia: json.promotionalMedia || d.promotionalMedia,
+      }));
 
       setConfidence(json.confidence ?? 'low');
-      setFoundImages(json.images ?? []);
+
+      // Merge AI-found images with any existing local (pasted/uploaded) images
+      const aiImages: FoundImage[] = (json.images ?? []).map((img: any) => ({ ...img, isLocal: false }));
+      setFoundImages(prev => {
+        const locals = prev.filter(i => i.isLocal);
+        return [...locals, ...aiImages];
+      });
       
-      // Pre-select the first 3 images that were auto-added
-      const first3Urls = (json.images ?? []).slice(0, 3).map((img: any) => img.url);
-      setSelectedImgs(new Set(first3Urls));
+      // Only local (pasted/uploaded) images are pre-selected
+      setSelectedImgs(prev => {
+        const localUrls = new Set([...prev]);
+        // Keep only local selections, don't pre-select AI found images
+        return localUrls;
+      });
       
       setAIStatus('done');
     } catch (err) {
@@ -171,23 +268,36 @@ export default function ProductForm({
     }
   };
 
-  // ─── Image gallery selection ──────────────────────────────────
+  // ─── Image gallery selection (directly syncs with data.images) ──
   const toggleImage = (url: string) => {
     setSelectedImgs((prev) => {
       const next = new Set(prev);
-      if (next.has(url)) next.delete(url);
-      else next.add(url);
+      if (next.has(url)) next.delete(url); else next.add(url);
       return next;
+    });
+    // Sync data.images in real-time
+    setData(d => {
+      const existing = d.images ? d.images.split('\n').filter(Boolean) : [];
+      if (existing.includes(url)) {
+        return { ...d, images: existing.filter(u => u !== url).join('\n') };
+      } else {
+        return { ...d, images: [...existing, url].join('\n') };
+      }
     });
   };
 
-  // Apply selected images to the form's images textarea
-  const applySelectedImages = () => {
-    const existing = data.images ? data.images.split('\n').filter(Boolean) : [];
-    const toAdd    = [...selectedImgs].filter((u) => !existing.includes(u));
-    set('images', [...existing, ...toAdd].join('\n'));
-    setSelectedImgs(new Set());
-  };
+  // Keep data.images in sync: remove any gallery URL that's no longer selected
+  useEffect(() => {
+    if (foundImages.length === 0) return;
+    const galleryUrls = new Set(foundImages.map(i => i.url));
+    setData(d => {
+      const existing = d.images ? d.images.split('\n').filter(Boolean) : [];
+      const cleaned = existing.filter(url => !galleryUrls.has(url) || selectedImgs.has(url));
+      const newStr = cleaned.join('\n');
+      if (newStr === d.images) return d;
+      return { ...d, images: newStr };
+    });
+  }, [selectedImgs, foundImages]);
 
   // ─── Standalone image search ─────────────────────────────────
   const runImageSearch = async () => {
@@ -330,7 +440,15 @@ export default function ProductForm({
         </div>
 
         {/* Hidden file input always rendered */}
-        <input ref={fileRef} type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = ''; }} style={{ display: 'none' }} />
+        <input ref={fileRef} type="file" accept="image/*" multiple onChange={async (e) => {
+          const files = e.target.files;
+          if (!files || files.length === 0) return;
+          // First file → AI panel
+          handleImageFile(files[0]);
+          // All files → gallery (pre-selected)
+          handleMultiFiles(Array.from(files));
+          e.target.value = '';
+        }} style={{ display: 'none' }} />
 
         {/* ALWAYS VISIBLE Drop zone */}
         <div
@@ -348,9 +466,9 @@ export default function ProductForm({
         >
           <Upload size={aiFile ? 20 : 28} color="var(--color-text-muted)" style={{ margin: '0 auto 0.5rem', display: 'block' }} />
           <p style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: aiFile ? '0.9rem' : '1rem' }}>
-            Arrastra una foto o haz clic para seleccionar
+            Arrastra imágenes aquí o haz clic para subir
           </p>
-          {!aiFile && <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>JPG · PNG · WEBP · Máx 10 MB</p>}
+          {!aiFile && <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Puedes subir varias a la vez · JPG · PNG · WEBP · Máx 10 MB</p>}
         </div>
 
         {aiFile && (
@@ -485,27 +603,24 @@ export default function ProductForm({
                 </button>
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
-                La primera imagen es la principal.
+                La primera imagen es la principal. También puedes <strong>pegar imágenes</strong> con Ctrl+V.
               </p>
 
-              {/* ── Found Images Gallery (inline) ── */}
+
+
+              {/* ── Images Gallery (local + found) ── */}
               {(foundImages.length > 0 || searchingImages) && (
                 <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--color-bg-alt)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <ImageIcon size={16} color="var(--color-primary)" />
                       <strong style={{ fontSize: '0.85rem' }}>
-                        {searchingImages ? 'Buscando imágenes…' : `Imágenes encontradas (${foundImages.length})`}
+                        {searchingImages ? 'Buscando imágenes…' : `Imágenes disponibles (${foundImages.length})`}
                       </strong>
                       {foundImages.length > 0 && !searchingImages && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>— Selecciona las que quieres usar</span>
                       )}
                     </div>
-                    {selectedImgs.size > 0 && (
-                      <button type="button" className="btn btn-primary btn-sm" onClick={applySelectedImages}>
-                        ✓ Agregar {selectedImgs.size} imagen{selectedImgs.size > 1 ? 'es' : ''}
-                      </button>
-                    )}
                   </div>
                   {searchingImages ? (
                     <div style={{ textAlign: 'center', padding: '1.5rem' }}>
@@ -549,7 +664,11 @@ export default function ProductForm({
                                 </div>
                               )}
                             </button>
-                            <a href={img.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.65rem', textAlign: 'center', color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>👁️ Ver</a>
+                            {img.isLocal ? (
+                              <span style={{ fontSize: '0.65rem', textAlign: 'center', color: 'var(--color-text-muted)', fontWeight: 600 }}>📋 {img.title}</span>
+                            ) : (
+                              <a href={img.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.65rem', textAlign: 'center', color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>👁️ Ver</a>
+                            )}
                           </div>
                         );
                       })}
@@ -558,106 +677,95 @@ export default function ProductForm({
                 </div>
               )}
 
-              {/* Visual thumbnail list with remove buttons */}
+              {/* ── Confirmed images with default selector ── */}
               {data.images && data.images.split('\n').filter(Boolean).length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  {data.images.split('\n').filter(Boolean).map((url, idx) => (
-                    <div
-                      key={url + idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        padding: '0.5rem',
-                        background: idx === 0 ? 'rgba(139,69,19,0.06)' : 'var(--color-bg-alt)',
-                        borderRadius: 'var(--radius-md)',
-                        border: idx === 0 ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
-                      }}
-                    >
-                      {/* Thumbnail */}
-                      <div style={{ width: 48, height: 48, flexShrink: 0, borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: 'var(--color-border-light)' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={url.trim()}
-                          alt={`Imagen ${idx + 1}`}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      </div>
-
-                      {/* URL + badge */}
-                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                        {idx === 0 && (
-                          <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            ★ Principal
-                          </span>
-                        )}
-                        <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>
-                          {url.trim()}
-                        </p>
-                      </div>
-
-                      {/* Remove button */}
-                      <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                        {idx !== 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const urls = data.images.split('\n').filter(Boolean);
-                              const [moved] = urls.splice(idx, 1);
-                              urls.unshift(moved);
-                              set('images', urls.join('\n'));
-                            }}
-                            title="Establecer como imagen principal"
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: '50%',
-                              border: '1px solid var(--color-primary)',
-                              background: 'transparent',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'var(--color-primary)',
-                              fontSize: '0.8rem',
-                              transition: 'background 0.15s',
-                            }}
-                            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,69,19,0.1)'; }}
-                            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                          >
-                            ★
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const urls = data.images.split('\n').filter(Boolean);
-                            urls.splice(idx, 1);
-                            set('images', urls.join('\n'));
-                          }}
-                          title="Eliminar imagen"
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span>Imágenes del producto ({data.images.split('\n').filter(Boolean).length})</span>
+                    <span style={{ fontSize: '0.65rem' }}>— Haz clic en ★ para establecer la imagen principal</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {data.images.split('\n').filter(Boolean).map((url, idx) => {
+                      const isDefault = idx === 0;
+                      return (
+                        <div
+                          key={url + idx}
                           style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            border: '1px solid var(--color-border)',
-                            background: 'transparent',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--color-accent)',
-                            transition: 'background 0.15s, color 0.15s',
+                            position: 'relative',
+                            width: 120,
+                            borderRadius: 'var(--radius-md)',
+                            overflow: 'hidden',
+                            border: isDefault ? '2.5px solid var(--color-primary)' : '1.5px solid var(--color-border)',
+                            background: 'var(--color-border-light)',
                           }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.1)'; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                         >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                          {/* Thumbnail */}
+                          <div style={{ width: '100%', height: 100, overflow: 'hidden' }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url.trim()}
+                              alt={`Imagen ${idx + 1}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          </div>
+                          {/* Controls bar */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 0.35rem', background: isDefault ? 'rgba(139,69,19,0.08)' : 'var(--color-bg-alt)' }}>
+                            {/* Default star (radio-style) */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isDefault) return;
+                                const urls = data.images.split('\n').filter(Boolean);
+                                const [moved] = urls.splice(idx, 1);
+                                urls.unshift(moved);
+                                set('images', urls.join('\n'));
+                              }}
+                              title={isDefault ? 'Imagen principal' : 'Establecer como principal'}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: isDefault ? 'default' : 'pointer',
+                                padding: '2px',
+                                fontSize: '1.1rem',
+                                lineHeight: 1,
+                                color: isDefault ? '#d4a017' : '#999',
+                                transition: 'color 0.15s',
+                              }}
+                              onMouseEnter={(e) => { if (!isDefault) (e.currentTarget.style.color = '#d4a017'); }}
+                              onMouseLeave={(e) => { if (!isDefault) (e.currentTarget.style.color = '#999'); }}
+                            >
+                              {isDefault ? '★' : '☆'}
+                            </button>
+                            {isDefault && (
+                              <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Principal</span>
+                            )}
+                            {/* Remove button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const urls = data.images.split('\n').filter(Boolean);
+                                urls.splice(idx, 1);
+                                set('images', urls.join('\n'));
+                              }}
+                              title="Eliminar imagen"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                color: 'var(--color-accent)',
+                                lineHeight: 1,
+                                transition: 'color 0.15s',
+                              }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: '0.75rem' }}>

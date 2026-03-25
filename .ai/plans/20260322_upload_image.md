@@ -185,10 +185,185 @@ The Gemini prompt is designed to:
 
 ---
 
+## Extension: Multi-Image Upload, Paste & AI Iteration
+
+**Date:** 2026-03-25  
+**Status:** ✅ Implemented  
+
+> [!NOTE]
+> This section extends the original plan above. The core AI analysis and image search remain unchanged — the extension enriches them with additional input.
+
+### New Capabilities
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | **Clipboard paste** | `Ctrl+V` / `Cmd+V` an image anywhere on the form → appears in the Imágenes gallery |
+| 2 | **Multi-file upload** | New upload zone in the Imágenes card accepts multiple files (drag/drop or click) |
+| 3 | **Unified gallery** | Uploaded (local) images and found (CSE) images display together in the same gallery |
+| 4 | **AI iterates uploads** | "Analizar con IA" sends **all** uploaded images to Gemini, not just the single drop zone image — richer identification and better image search results |
+
+### User Flow (Extended)
+
+```
+1. Admin opens /admin/products/new (or /edit)
+2. (Option A) Paste image from clipboard → thumbnail appears in Imágenes section
+   (Option B) Drag/drop or click in Imágenes upload zone → select multiple files
+   (Option C) Drag/drop single photo in AI panel (unchanged)
+3. Click "Analizar con IA"
+   → AI receives the AI panel image PLUS any additional uploaded/pasted images
+   → Gemini analyzes all images together for richer product identification
+   → Google CSE uses the identified product for image search (unchanged)
+4. Form auto-fills with AI data (unchanged)
+5. Found images + uploaded images shown together in gallery
+6. User selects which images to keep, reorders, sets primary
+7. User clicks "Guardar" → product saved with all selected images
+```
+
+### Architecture / Technical Design
+
+#### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/components/admin/ProductForm.tsx` | Add `onPaste` handler, multi-file upload zone, `uploadedFiles` state, enhanced `runAIAnalysis()` |
+| `src/app/api/admin/ai/analyze-product/route.ts` | Accept multiple image fields in FormData, send all to Gemini |
+| `src/app/api/admin/products/route.ts` | Relax image validation: `z.string().url()` → `z.string().min(1)` (accept data URLs) |
+| `src/app/api/admin/products/[id]/route.ts` | Same validation change |
+
+#### ProductForm.tsx Changes
+
+**New state:**
+
+```typescript
+const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+```
+
+**Paste handler** (on top-level container):
+
+```typescript
+const onPaste = useCallback(async (e: React.ClipboardEvent) => {
+  const items = Array.from(e.clipboardData.items);
+  const imageItems = items.filter(item => item.type.startsWith('image/'));
+  if (imageItems.length === 0) return;
+  e.preventDefault();
+
+  for (const item of imageItems) {
+    const file = item.getAsFile();
+    if (!file) continue;
+    const dataUrl = await fileToDataUrl(file);
+    setData(d => ({
+      ...d,
+      images: d.images ? `${d.images}\n${dataUrl}` : dataUrl,
+    }));
+    setUploadedFiles(prev => [...prev, file]);
+  }
+}, []);
+```
+
+**Multi-file upload zone** (in Imágenes card, above found images):
+
+```typescript
+<div
+  onClick={() => multiFileRef.current?.click()}
+  onDrop={onMultiDrop}
+  onDragOver={(e) => { e.preventDefault(); }}
+  style={{ /* dashed border drop zone styling */ }}
+>
+  <Upload size={20} />
+  <p>Arrastra imágenes aquí o haz clic para subir</p>
+  <p>Puedes subir varias a la vez · También puedes pegar con Ctrl+V</p>
+</div>
+<input ref={multiFileRef} type="file" multiple accept="image/*"
+  onChange={handleMultiFiles} style={{ display: 'none' }} />
+```
+
+**Enhanced AI analysis:**
+
+```typescript
+const runAIAnalysis = async () => {
+  if (!aiFile) return;
+  setAIStatus('analyzing');
+
+  const fd = new FormData();
+  fd.append('image', aiFile); // Primary image (unchanged)
+  
+  // Append additional uploaded images for richer analysis
+  uploadedFiles.forEach((file, i) => {
+    fd.append(`additionalImage`, file);
+  });
+
+  const res = await fetch('/api/admin/ai/analyze-product', { method: 'POST', body: fd });
+  // ... rest unchanged
+};
+```
+
+**Helper function:**
+
+```typescript
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+```
+
+#### API: analyze-product/route.ts Changes
+
+```typescript
+// Current: single image
+const image = formData.get('image') as File;
+
+// Extended: primary + additional images
+const primaryImage = formData.get('image') as File;
+const additionalImages = formData.getAll('additionalImage') as File[];
+const allImages = [primaryImage, ...additionalImages].filter(Boolean);
+
+// Convert all to base64 and include in Gemini prompt
+const imagePartsForGemini = await Promise.all(
+  allImages.map(async (img) => ({
+    inlineData: {
+      data: Buffer.from(await img.arrayBuffer()).toString('base64'),
+      mimeType: img.type,
+    },
+  }))
+);
+```
+
+Gemini prompt addition:
+```
+"I'm providing {N} product photos. Analyze all of them together to 
+identify the product with maximum accuracy. Use all visual cues across 
+the images to generate the most complete and detailed response."
+```
+
+#### API Validation Changes
+
+Both `route.ts` files change:
+```diff
+- images: z.array(z.string().url()).default([]),
++ images: z.array(z.string().min(1)).default([]),
+```
+
+This accepts both regular URLs and `data:image/...;base64,...` strings.
+
+> [!WARNING]
+> Data URLs increase database row size. Acceptable for dev/MVP. Wire up Supabase Storage upload before production launch.
+
+### Verification (Manual)
+
+1. **Paste test**: Copy image → `Ctrl+V` on form → appears in Imágenes list
+2. **Multi-upload test**: Click upload zone → select 3+ files → all appear in list
+3. **AI + uploads test**: Upload 2 images → drop 1 in AI zone → "Analizar con IA" → verify all 3 sent to API (check browser DevTools network tab, FormData)
+4. **Save test**: Create product with mixed uploaded + found images → verify save succeeds
+5. **Edit test**: Re-open saved product → verify all images display correctly
+
+---
+
 ## Future Enhancements / Mejoras Futuras
 
-- [ ] Upload found images to Supabase Storage (avoid hotlinking)
+- [ ] Upload images to Supabase Storage (replace data URLs with hosted URLs)
 - [ ] Perplexity API fallback for better pricing research
-- [ ] Batch import: upload multiple product photos at once
 - [ ] Re-analyze button on edit page to refresh AI suggestions
 - [ ] Stripe price sync after admin confirms price

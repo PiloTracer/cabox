@@ -166,6 +166,38 @@ export default async function ProductDetailPage({ params }: Props) {
             />
           )}
 
+          {/* Specifications (collapsible) */}
+          {(() => {
+            const specs = locale === 'es' ? product.specsEs : product.specsEn;
+            if (!specs) return null;
+            return (
+              <details className="product-specs" style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                <summary style={{
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  padding: '0.75rem 0',
+                  borderTop: '1px solid var(--color-border, #e5e7eb)',
+                  borderBottom: '1px solid var(--color-border, #e5e7eb)',
+                  listStyle: 'none',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  userSelect: 'none',
+                  color: 'var(--color-text)',
+                }}>
+                  {locale === 'es' ? 'Especificaciones' : 'Specifications'}
+                  <span style={{ fontSize: '1.1rem', transition: 'transform 0.2s' }}>▸</span>
+                </summary>
+                <div
+                  className="product-description"
+                  style={{ paddingTop: '1rem' }}
+                  dangerouslySetInnerHTML={{ __html: simpleMarkdown(specs) }}
+                />
+              </details>
+            );
+          })()}
+
           {/* Actions */}
           <div className="product-actions" style={{ marginBottom: '2rem' }}>
             <AddToCartButton

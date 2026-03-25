@@ -8,6 +8,8 @@ const productSchema = z.object({
   nameEn: z.string().default(''),
   descriptionEs: z.string().default(''),
   descriptionEn: z.string().default(''),
+  specsEs: z.string().default(''),
+  specsEn: z.string().default(''),
   sku: z.string().min(1),
   slug: z.string().min(1),
   price: z.number().positive(),
@@ -17,8 +19,8 @@ const productSchema = z.object({
   status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).default('DRAFT'),
   featured: z.boolean().default(false),
   stock: z.number().int().min(0).default(0),
-  // images: accept URL strings for convenience; server converts to ProductImage records
-  images: z.array(z.string().url()).default([]),
+  // images: accept URL strings (or data URLs for uploaded images); server converts to ProductImage records
+  images: z.array(z.string().min(1)).default([]),
   promotionalCopy: z.any().optional().nullable(),
   promotionalMedia: z.any().optional().nullable(),
 });
@@ -51,6 +53,8 @@ export async function POST(req: NextRequest) {
       nameEn:        data.nameEn,
       descriptionEs: data.descriptionEs ?? '',
       descriptionEn: data.descriptionEn ?? '',
+      specsEs:       data.specsEs ?? '',
+      specsEn:       data.specsEn ?? '',
       sku:           data.sku,
       slug:          data.slug,
       price:         data.price,
