@@ -38,7 +38,7 @@ COPY --from=builder /app/node_modules/prisma  ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Auto-migration entrypoint (runs as root, then drops to nextjs)
-RUN printf '#!/bin/sh\nset -e\necho "⏳ Running Prisma migrations..."\nnpx prisma migrate deploy --schema=./prisma/schema.prisma\necho "✅ Migrations applied"\nexec su -s /bin/sh nextjs -c "node server.js"\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+RUN printf '#!/bin/sh\nset -e\necho "⏳ Running Prisma migrations..."\nnode node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma\necho "✅ Migrations applied"\nexec su -s /bin/sh nextjs -c "node server.js"\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 EXPOSE 3000
 ENTRYPOINT ["/app/entrypoint.sh"]
