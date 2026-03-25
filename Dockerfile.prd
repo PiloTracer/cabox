@@ -65,5 +65,8 @@ exec su -s /bin/sh nextjs -c "node server.js"
 EOF
 RUN chmod +x /app/entrypoint.sh
 
+# Ensure nextjs user has permission to write to the cache
+RUN mkdir -p /app/.next/cache && chown -R nextjs:nodejs /app/.next
+
 EXPOSE 3000
 ENTRYPOINT ["/app/entrypoint.sh"]
