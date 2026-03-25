@@ -5,6 +5,10 @@ import { routing } from '@/i18n/routing';
 
 type Locale = typeof routing.locales[number];
 
+export function generateStaticParams() {
+  return routing.locales.map((locale: string) => ({ locale }));
+}
+
 export default async function LocaleLayout({
   children,
   params,
