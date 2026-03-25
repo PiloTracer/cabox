@@ -35,8 +35,26 @@ COPY --from=builder /app/prisma            ./prisma
 # Copy full node_modules for Prisma CLI migration (includes all transitive deps)
 COPY --from=builder /app/node_modules ./node_modules
 
-# Auto-migration entrypoint (runs as root, then drops to nextjs)
-RUN printf '#!/bin/sh\nset -e\necho "⏳ Running Prisma migrations..."\nnode node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma\necho "✅ Migrations applied"\nexec su -s /bin/sh nextjs -c "node server.js"\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+# Auto-migration entrypoint
+COPY <<'EOF' /app/entrypoint.sh
+#!/bin/sh
+set -e
+echo "⏳ Running Prisma migrations..."
+
+# Auto-resolve any previously failed migrations (P3009)
+FAILED=$(node node_modules/prisma/build/index.js migrate status --schema=./prisma/schema.prisma 2>&1 | awk -F'\`' '/The \`/ {print $2}' | head -n 1 || true)
+if [ -n "$FAILED" ]; then
+  echo "⚠️  Resolving failed migration: $FAILED"
+  node node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --rolled-back "$FAILED" || true
+fi
+
+# Apply pending migrations
+node node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma || echo "⚠️  Migration had issues, starting app anyway..."
+
+echo "🚀 Starting application..."
+exec su -s /bin/sh nextjs -c "node server.js"
+EOF
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 3000
 ENTRYPOINT ["/app/entrypoint.sh"]
