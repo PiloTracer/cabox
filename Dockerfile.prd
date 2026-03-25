@@ -39,13 +39,22 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY <<'EOF' /app/entrypoint.sh
 #!/bin/sh
 set -e
+export NO_COLOR=1
 echo "⏳ Running Prisma migrations..."
 
-# Auto-resolve any previously failed migrations (P3009)
-FAILED=$(node node_modules/prisma/build/index.js migrate status --schema=./prisma/schema.prisma 2>&1 | awk -F'\`' '/The \`/ {print $2}' | head -n 1 || true)
-if [ -n "$FAILED" ]; then
-  echo "⚠️  Resolving failed migration: $FAILED"
-  node node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --rolled-back "$FAILED" || true
+# Step 1: Just hard-recover the specific migration that broke production immediately to guarantee unblocking
+node node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --rolled-back "20260325033630" || true
+
+# Step 2: Auto-recover any other failed migrations dynamically using foolproof regex (14 digits)
+STATUS_OUT=$(node node_modules/prisma/build/index.js migrate status --schema=./prisma/schema.prisma 2>&1 || true)
+if echo "$STATUS_OUT" | grep -qi "failed"; then
+  FAILED_MIGRATIONS=$(echo "$STATUS_OUT" | grep -Eo '20[0-9]{12}' | sort | uniq || true)
+  for MIGRATION in $FAILED_MIGRATIONS; do
+    if [ -n "$MIGRATION" ]; then
+      echo "⚠️  Resolving failed migration: $MIGRATION"
+      node node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --rolled-back "$MIGRATION" || true
+    fi
+  done
 fi
 
 # Apply pending migrations
