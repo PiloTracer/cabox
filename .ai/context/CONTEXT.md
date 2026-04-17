@@ -1,6 +1,6 @@
 # Cabox — Curated Fashion PWA Store
 
-> **Last Updated**: 2026-03-21
+> **Last Updated**: 2026-04-17
 > **License**: Copyright (c) 2026 Alejandro Castro. All rights reserved.
 
 ## Core Identity
@@ -62,7 +62,27 @@
 | `.ai/context/.cursorrules` | Agent coding rules |
 
 ## Development Status
-- **Current Phase**: Phase 4 — Storefront Professional Enhancements (complete)
-- **Active Plan**: `.ai/plans/20260322_storefront_enhancements.md`
+- **Current Phase**: Phase 5 — Core Integrations (in progress)
+- **Completed**: Phase 4 — Storefront Professional Enhancements (cart drawer, image zoom, skeletons, SEO schema)
 - **Implementation Plan**: `.ai/plans/20260321_pwa_ecommerce_plan.md`
-- **Next Step**: Phase 5 — Stripe integration, category management, WhatsApp notifications, PWA
+- **Recently Added**: Volume-level backup/restore in `bin/start.sh`
+
+## Feature Implementation Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **WhatsApp Notifications** | ✅ Implemented | `lib/whatsapp.ts`, order confirmation messages, admin send API |
+| **Stripe Payments** | ✅ Implemented | Checkout session, webhook, `lib/stripe.ts` |
+| **PayPal Payments** | ✅ Implemented | Webhook, SDK integration |
+| **Categories API** | ✅ Implemented | CRUD endpoints at `/api/admin/categories` |
+| **Categories Admin UI** | ⚠️ Partial | API ready, sidebar link exists, page needs verification |
+| **PWA** | ⚠️ Partial | `@ducanh2912/next-pwa` installed, manifest exists, service worker config needed |
+| **Backup/Restore** | ✅ Implemented | Volume-level backup in `bin/start.sh` (B/R menu options) |
+| **WhatsApp Plan** | ❌ Empty | `.ai/plans/20260322_whatsapp_plan.md` is 0 bytes |
+
+## Next Steps
+1. Complete PWA service worker configuration
+2. Verify admin categories management page
+3. Populate or remove empty WhatsApp plan file
+4. StripeConnect/payouts (future)
+5. Inventory variants UI

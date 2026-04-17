@@ -1,6 +1,6 @@
 # Cabox — Technology Stack & Development Reference
 
-> **Last Updated**: 2026-03-21
+> **Last Updated**: 2026-04-17
 
 ## Frontend Technologies
 

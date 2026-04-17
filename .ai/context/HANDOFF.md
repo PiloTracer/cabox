@@ -1,18 +1,28 @@
 # Cabox — Session Handoff
 
-> **Last Updated**: 2026-03-22T21:36:00-06:00
-> **Session Date**: March 22, 2026
+> **Last Updated**: 2026-04-17T15:45:00-06:00
+> **Session Date**: April 17, 2026
 
 ## Current Focus
 
-Phase 4 work completed today. All 5 Storefront Professional Enhancements are implemented:
-1. ✅ Slide-out Cart Drawer (Zustand global state)
-2. ✅ Image Zoom (Desktop magnifier + Mobile lightbox)
-3. ✅ Skeleton Loaders (loading.tsx for products grid + detail)
-4. ✅ JSON-LD Schema Markup (Product + Organization)
-5. ✅ Dynamic Sitemap & Robots.txt
+Phase 5 work in progress. Recent major additions:
 
-Earlier in session: fixed order checkout API, admin order detail page, AI ad generator with Gemini, share button, promotional media section, WhatsApp text ads always including URL.
+### Recently Completed (April 2026)
+1. ✅ **Volume-level Backup/Restore** — Added to `bin/start.sh` (B/R menu options)
+   - Cold backup of PostgreSQL data directory
+   - Dev/Prd environment support with correct volume names
+   - PG_VERSION validation
+   - Automatic service stop/start with error recovery
+
+### Previously Completed (March 2026)
+- ✅ Phase 4: Storefront Professional Enhancements (cart drawer, image zoom, skeletons, SEO)
+- ✅ WhatsApp notifications on order creation
+- ✅ Stripe checkout + webhook
+- ✅ PayPal webhook
+- ✅ AI ad generator (Gemini)
+- ✅ Share button
+- ✅ Order ticket system (payment proof upload)
+- ✅ Categories API (CRUD endpoints)
 
 ## Docker Stack (dev)
 
@@ -24,45 +34,40 @@ Earlier in session: fixed order checkout API, admin order detail page, AI ad gen
 | `cabox_pgbouncer`| Up          | internal `5432`     |
 | `cabox_redis`    | Up          | internal `6379`     |
 
-**Start command**: `./bin/start.sh dev`
+**Start command**: `./bin/start.sh` (auto-detects env) or `./bin/start.sh dev`
+**Backup/Restore**: Select **B** or **R** in the menu
 **URLs**: Store → `http://localhost:8080/es` | Admin → `http://localhost:8080/admin`
 
-## Uncommitted Changes (5 Modified + 7 New)
+## Uncommitted Changes
 
-### Modified Files
+Check `git status` for current state. Previous session (March 22) had storefront enhancements.
+
+### Key Files Modified Recently
 | File | Change |
 |------|--------|
-| `app/src/app/[locale]/(store)/layout.tsx` | Added Organization JSON-LD + CartDrawer import |
-| `app/src/app/[locale]/(store)/products/[slug]/page.tsx` | Added Product JSON-LD schema |
-| `app/src/components/store/Navbar.tsx` | Removed inline CartDrawer, uses global `openCart` from Zustand |
-| `app/src/components/store/ProductGallery.tsx` | Added hover magnifier (2x zoom) + fullscreen lightbox modal |
-| `app/src/stores/cart-store.ts` | Added `isCartOpen`, `openCart`, `closeCart` state + actions |
-
-### New Files
-| File | Purpose |
-|------|---------|
-| `app/src/components/store/CartDrawer.tsx` | Global slide-out cart drawer (175 lines) |
-| `app/src/components/store/ProductCardSkeleton.tsx` | Reusable skeleton for product cards |
-| `app/src/app/[locale]/(store)/products/loading.tsx` | Skeleton for products grid page |
-| `app/src/app/[locale]/(store)/products/[slug]/loading.tsx` | Skeleton for product detail page |
-| `app/src/app/sitemap.ts` | Dynamic sitemap querying Prisma for active products |
-| `app/src/app/robots.ts` | Blocks `/admin/` and `/api/`, broadcasts sitemap URL |
-| `.ai/plans/20260322_storefront_enhancements.md` | Enhancement plan doc |
+| `bin/start.sh` | Added backup/restore functions (B/R menu options) |
+| `.gitignore` | Added `backup/` directory |
+| `templates/env.dev.template` | Aligned structure with `.env.example` |
+| `.env.example` | Added comment line for alignment |
+| `.ai/context/*.md` | Updated with current feature status |
 
 ## Known Issues / Blockers
 
 1. **Sitemap 500 in dev**: `http://localhost:8080/sitemap.xml` returns 500. Likely a Nginx proxy issue — the route works inside the Docker container on port 3000 but fails through the Nginx reverse proxy on 8080. Needs investigation of `nginx.conf` to ensure `/sitemap.xml` is properly forwarded.
 2. **VS Code TS lint errors**: Persistent false-positive "Cannot find module" errors because the IDE TS server runs against repo root, not inside Docker. Turbopack compiles correctly inside Docker.
 3. **PgBouncer & Prisma**: Prisma singleton uses `DATABASE_URL_DIRECT` (bypasses PgBouncer). Do not change.
-4. **CartDrawer i18n**: Uses namespace `'cart'` — must match `es.json` / `en.json` message keys.
+4. **Empty WhatsApp Plan**: `.ai/plans/20260322_whatsapp_plan.md` exists but is 0 bytes — should be populated or removed.
+5. **PWA Service Worker**: `@ducanh2912/next-pwa` is installed but service worker configuration needs verification.
+6. **Admin Categories Page**: API exists at `/api/admin/categories` but the admin page needs verification — sidebar link exists in `AdminSidebar.tsx`.
 
 ## Git State
 
+Check current state with `git status`. Previous commit:
 ```
 bd44e41 (HEAD -> master, origin/master) promotional material is saved
 ```
 
-**User must commit**: `git add . && git commit -m "feat: storefront enhancements — cart drawer, image zoom, skeletons, SEO"`
+**Pending changes**: Context files updated, backup/restore added to `bin/start.sh`, env templates aligned.
 
 ## Active Files (Key Areas)
 
@@ -118,14 +123,13 @@ bd44e41 (HEAD -> master, origin/master) promotional material is saved
 
 ## Atomic Next Steps
 
-1. **User Action**: Commit uncommitted changes
-2. **Fix Sitemap 500**: Investigate Nginx config for `/sitemap.xml` proxy pass
-3. **Category management** — `/admin/categories` — list + create + reorder
-4. **Stripe integration** — install `stripe`, webhook route, payment flow
-5. **WhatsApp notifications** — on order create, send WA to admin
-6. **PWA service worker** — offline product cache + install prompt
-7. **Image upload** — Cloudflare R2 / Vercel Blob for product images
-8. **Inventory variants** — `ProductVariant` model exists; wire into ProductForm
+1. **Fix or Remove Empty Plan**: Populate `.ai/plans/20260322_whatsapp_plan.md` or delete it
+2. **Verify Admin Categories Page**: Ensure `/admin/categories` page exists and works (API is ready)
+3. **Complete PWA Configuration**: Verify service worker and manifest configuration
+4. **Fix Sitemap 500**: Investigate Nginx config for `/sitemap.xml` proxy pass
+5. **Test Backup/Restore**: Run a test backup (B) and verify restore (R) works correctly
+6. **Future: StripeConnect** — payouts for marketplace (if needed)
+7. **Future: Inventory variants UI** — `ProductVariant` model exists; wire into ProductForm
 
 ## Environment
 
