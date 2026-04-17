@@ -485,3 +485,4 @@ audit_results.txt
 **/env/
 **/tmp/
 **/credentials/
+backup/
