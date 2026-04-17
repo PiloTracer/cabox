@@ -232,6 +232,7 @@ backup() {
     fi
     mkdir -p "${BACKUP_DIR}"
     
+    BACKUP_STATUS=1
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BACKUP_NAME="cabox_backup_${STORE_NAME}_${TARGET_ENV}_${TIMESTAMP}"
     TAR_FILE="${BACKUP_DIR}/${BACKUP_NAME}.tar.gz"
@@ -276,13 +277,21 @@ backup() {
             rm -f "${TAR_FILE}"
             BACKUP_STATUS=1
         else
-            SIZE=$(du -h "${TAR_FILE}" 2>/dev/null | cut -f1)
-            echo ""
-            echo "✅  Backup created successfully!"
-            echo "    File: ${BACKUP_NAME}.tar.gz"
-            echo "    Size: ${SIZE}"
-            echo "    Location: ${BACKUP_DIR}"
-            BACKUP_STATUS=0
+            # Sanity: archive must list PG_VERSION (PostgreSQL data directory marker)
+            if ! tar -tzf "${TAR_FILE}" 2>/dev/null | grep -qE '(^|/)PG_VERSION$'; then
+                echo ""
+                echo "❌  Archive does not look like PostgreSQL data (missing PG_VERSION)."
+                rm -f "${TAR_FILE}"
+                BACKUP_STATUS=1
+            else
+                SIZE=$(du -h "${TAR_FILE}" 2>/dev/null | cut -f1)
+                echo ""
+                echo "✅  Backup created successfully!"
+                echo "    File: ${BACKUP_NAME}.tar.gz"
+                echo "    Size: ${SIZE}"
+                echo "    Location: ${BACKUP_DIR}"
+                BACKUP_STATUS=0
+            fi
         fi
     else
         echo ""
@@ -386,6 +395,18 @@ restore() {
         return
     fi
     
+    RESTORE_PATH="${BACKUP_DIR}/${SELECTED_BASENAME}"
+    if [ ! -r "${RESTORE_PATH}" ]; then
+        echo "❌  Cannot read backup file: ${RESTORE_PATH}"
+        pause
+        return
+    fi
+    if ! tar -tzf "${RESTORE_PATH}" 2>/dev/null | grep -qE '(^|/)PG_VERSION$'; then
+        echo "❌  Backup archive is unreadable or does not contain PostgreSQL data (PG_VERSION)."
+        pause
+        return
+    fi
+    
     echo ""
     echo "▶  Restoring from ${SELECTED_BASENAME} ..."
     
@@ -410,17 +431,21 @@ restore() {
     # Remove existing volume data and restore from backup
     echo "    Wiping current data and restoring from backup ..."
     
-    # Use temp container to wipe volume and restore
+    # postgres:16-alpine runs as uid/gid 70; tar extracts as root — must chown or Postgres will not start.
     if docker run --rm \
         -v "${DB_VOLUME}:/pgdata" \
         -v "${BACKUP_DIR}:/backup:ro" \
         alpine:latest \
-        sh -c "rm -rf /pgdata/* /pgdata/.[!.]* /pgdata/..?* 2>/dev/null; tar -xzf \"/backup/${SELECTED_BASENAME}\" -C /pgdata"; then
+        sh -c 'set -e
+          rm -rf /pgdata/* /pgdata/.[!.]* /pgdata/..?* 2>/dev/null || true
+          tar -xzf "/backup/$1" -C /pgdata
+          chown -R 70:70 /pgdata
+        ' sh "${SELECTED_BASENAME}"; then
         
-        echo "    ✅ Data restored to volume"
+        echo "    ✅ Data restored to volume (ownership set to postgres:70)"
         RESTORE_STATUS=0
     else
-        echo "    ❌ Restore failed!"
+        echo "    ❌ Restore failed (docker run / tar / chown). See errors above."
         RESTORE_STATUS=1
     fi
     
