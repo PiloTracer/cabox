@@ -192,7 +192,270 @@ cleanup() {
     pause
 }
 
-# ── 4. Main Menu ──────────────────────────────────────────────
+# ── 5. Backup & Restore (Volume-Level) ──────────────────────
+# Uses filesystem-level volume backup (cold copy of PGDATA).
+# Compose names volumes: ${COMPOSE_PROJECT_NAME}_${volume_key} → here ${STORE_NAME}_…
+# Dev:  key cabox_pgdata   → e.g. cabox_cabox_pgdata,   service db
+# Prd:  key cabox_prd_pgdata → e.g. cabox_cabox_prd_pgdata, service postgres
+
+BACKUP_DIR="${PROJECT_ROOT}/backup"
+
+# Determine DB service and volume names based on environment
+get_db_config() {
+    if [ "$TARGET_ENV" = "prd" ]; then
+        DB_SERVICE="postgres"
+        DB_VOLUME="${STORE_NAME}_cabox_prd_pgdata"
+    else
+        DB_SERVICE="db"
+        DB_VOLUME="${STORE_NAME}_cabox_pgdata"
+    fi
+}
+
+# Ensure the named volume exists (avoids Docker creating an empty anonymous-style mount)
+verify_db_volume() {
+    if ! docker volume inspect "$DB_VOLUME" &>/dev/null; then
+        echo "❌  Docker volume not found: ${DB_VOLUME}"
+        echo "    Bring the stack up once (option 1) so Compose creates volumes, or check STORE_NAME."
+        return 1
+    fi
+    return 0
+}
+
+backup() {
+    header
+    echo "▶  Creating database volume backup ..."
+    
+    get_db_config
+    if ! verify_db_volume; then
+        pause
+        return
+    fi
+    mkdir -p "${BACKUP_DIR}"
+    
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_NAME="cabox_backup_${STORE_NAME}_${TARGET_ENV}_${TIMESTAMP}"
+    TAR_FILE="${BACKUP_DIR}/${BACKUP_NAME}.tar.gz"
+    
+    echo "    Target: ${DB_VOLUME}"
+    echo "    Service: ${DB_SERVICE}"
+    echo ""
+    
+    # Stop dependent services first (app, pgbouncer, nginx if exists)
+    echo "    Stopping app tier ..."
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop app 2>/dev/null || true
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop pgbouncer 2>/dev/null || true
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop nginx 2>/dev/null || true
+    
+    # Stop postgres to ensure filesystem consistency
+    echo "    Stopping ${DB_SERVICE} ..."
+    if ! COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop "${DB_SERVICE}" 2>/dev/null; then
+        echo "❌  Failed to stop ${DB_SERVICE}. Is the stack running?"
+        echo "    Attempting to restart app tier ..."
+        COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start pgbouncer 2>/dev/null || true
+        COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start app 2>/dev/null || true
+        COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start nginx 2>/dev/null || true
+        pause
+        return
+    fi
+    
+    echo "    Creating backup archive ..."
+    
+    # Create backup using temp container with volume mounted
+    # This backs up the actual PostgreSQL data directory
+    if docker run --rm \
+        -v "${DB_VOLUME}:/pgdata:ro" \
+        -v "${BACKUP_DIR}:/backup" \
+        alpine:latest \
+        tar -czf "/backup/${BACKUP_NAME}.tar.gz" -C /pgdata .; then
+        
+        # Reject empty or trivial archives (wrong volume name would create an empty new volume)
+        SZ=$(stat -c%s "${TAR_FILE}" 2>/dev/null || echo 0)
+        if [ ! -s "${TAR_FILE}" ] || [ "${SZ}" -lt 512 ] 2>/dev/null; then
+            echo ""
+            echo "❌  Backup file missing or too small — refusing to keep a useless archive."
+            rm -f "${TAR_FILE}"
+            BACKUP_STATUS=1
+        else
+            SIZE=$(du -h "${TAR_FILE}" 2>/dev/null | cut -f1)
+            echo ""
+            echo "✅  Backup created successfully!"
+            echo "    File: ${BACKUP_NAME}.tar.gz"
+            echo "    Size: ${SIZE}"
+            echo "    Location: ${BACKUP_DIR}"
+            BACKUP_STATUS=0
+        fi
+    else
+        echo ""
+        echo "❌  Backup failed (docker run / tar). See errors above."
+        rm -f "${TAR_FILE}"
+        BACKUP_STATUS=1
+    fi
+    
+    # Restart postgres
+    echo ""
+    echo "    Restarting ${DB_SERVICE} ..."
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start "${DB_SERVICE}" 2>/dev/null || true
+    
+    # Wait for postgres to be healthy
+    echo "    Waiting for ${DB_SERVICE} to be ready ..."
+    sleep 3
+    
+    # Restart app tier
+    echo "    Restarting app tier ..."
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start pgbouncer 2>/dev/null || true
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start app 2>/dev/null || true
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start nginx 2>/dev/null || true
+    
+    if [ $BACKUP_STATUS -ne 0 ]; then
+        echo ""
+        echo "⚠️  Backup failed but services have been restarted."
+    fi
+    
+    pause
+}
+
+restore() {
+    header
+    echo "▶  Database Restore — Select a backup"
+    echo ""
+    
+    get_db_config
+    if ! verify_db_volume; then
+        pause
+        return
+    fi
+    mkdir -p "${BACKUP_DIR}"
+    
+    # Newest first, up to 5 (nullglob: no bogus literal *.tar.gz)
+    mapfile -t BACKUPS < <(shopt -s nullglob; ls -1t "${BACKUP_DIR}"/*.tar.gz 2>/dev/null | head -5)
+    
+    if [ ${#BACKUPS[@]} -eq 0 ]; then
+        echo "❌  No backup files found in: ${BACKUP_DIR}"
+        echo "    Run backup first (option B) or place .tar.gz files in backup/"
+        pause
+        return
+    fi
+    
+    echo "  Available backups (most recent first):"
+    echo ""
+    for i in "${!BACKUPS[@]}"; do
+        NUM=$((i + 1))
+        FILE="${BACKUPS[$i]}"
+        BASENAME=$(basename "$FILE")
+        SIZE=$(du -h "$FILE" 2>/dev/null | cut -f1)
+        DATE=$(stat -c "%y" "$FILE" 2>/dev/null | cut -d'.' -f1 || stat -f "%Sm" "$FILE" 2>/dev/null)
+        printf "  %d) %-45s (%s)\n" "$NUM" "$BASENAME" "$SIZE"
+        echo "      Created: $DATE"
+        echo ""
+    done
+    
+    echo "  0) Cancel"
+    echo ""
+    read -rp "  Select backup to restore [0-${#BACKUPS[@]}]: " choice
+    
+    # Validate selection
+    if [ "$choice" = "0" ] || [ -z "$choice" ]; then
+        echo "❌  Restore cancelled."
+        pause
+        return
+    fi
+    
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#BACKUPS[@]}" ]; then
+        echo "❌  Invalid selection."
+        pause
+        return
+    fi
+    
+    SELECTED="${BACKUPS[$((choice - 1))]}"
+    SELECTED_BASENAME=$(basename "$SELECTED")
+    
+    echo ""
+    echo "⚠️  WARNING: This will COMPLETELY OVERWRITE the current database!"
+    echo "    Environment: ${TARGET_ENV}"
+    echo "    Target Volume: ${DB_VOLUME}"
+    echo "    Target Service: ${DB_SERVICE}"
+    echo "    Backup: ${SELECTED_BASENAME}"
+    echo ""
+    echo "    All current data will be DESTROYED and replaced with backup contents."
+    echo ""
+    read -rp "  Type 'RESTORE' to confirm: " confirm
+    
+    if [ "$confirm" != "RESTORE" ]; then
+        echo "❌  Restore cancelled (confirmation mismatch)."
+        pause
+        return
+    fi
+    
+    echo ""
+    echo "▶  Restoring from ${SELECTED_BASENAME} ..."
+    
+    # Stop all dependent services first
+    echo "    Stopping app tier ..."
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop app 2>/dev/null || true
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop pgbouncer 2>/dev/null || true
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop nginx 2>/dev/null || true
+    
+    # Stop postgres
+    echo "    Stopping ${DB_SERVICE} ..."
+    if ! COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop "${DB_SERVICE}" 2>/dev/null; then
+        echo "❌  Failed to stop ${DB_SERVICE}"
+        echo "    Restore aborted. Restarting app tier ..."
+        COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start pgbouncer 2>/dev/null || true
+        COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start app 2>/dev/null || true
+        COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start nginx 2>/dev/null || true
+        pause
+        return
+    fi
+    
+    # Remove existing volume data and restore from backup
+    echo "    Wiping current data and restoring from backup ..."
+    
+    # Use temp container to wipe volume and restore
+    if docker run --rm \
+        -v "${DB_VOLUME}:/pgdata" \
+        -v "${BACKUP_DIR}:/backup:ro" \
+        alpine:latest \
+        sh -c "rm -rf /pgdata/* /pgdata/.[!.]* /pgdata/..?* 2>/dev/null; tar -xzf \"/backup/${SELECTED_BASENAME}\" -C /pgdata"; then
+        
+        echo "    ✅ Data restored to volume"
+        RESTORE_STATUS=0
+    else
+        echo "    ❌ Restore failed!"
+        RESTORE_STATUS=1
+    fi
+    
+    # Start postgres
+    echo ""
+    echo "    Starting ${DB_SERVICE} ..."
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start "${DB_SERVICE}" 2>/dev/null || true
+    
+    # Wait for postgres
+    echo "    Waiting for ${DB_SERVICE} to be ready ..."
+    sleep 5
+    
+    # Start app tier
+    echo "    Starting app tier ..."
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start pgbouncer 2>/dev/null || true
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start app 2>/dev/null || true
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start nginx 2>/dev/null || true
+    
+    if [ $RESTORE_STATUS -eq 0 ]; then
+        echo ""
+        echo "✅  Database restored successfully!"
+        echo ""
+        echo "    Next steps:"
+        echo "    - Verify data in Prisma Studio (option 10)"
+        echo "    - Run migrations if schema changed (option 8)"
+    else
+        echo ""
+        echo "❌  Restore failed! Your database may be in an inconsistent state."
+        echo "    You may need to restore again or recreate the volume."
+    fi
+    
+    pause
+}
+
+# ── 6. Main Menu ──────────────────────────────────────────────
 while true; do
     header
     echo "  1.  Up (Build & Start)"
@@ -207,6 +470,9 @@ while true; do
     echo "  9.  Prisma Seed"
     echo "  10. Prisma Studio"
     echo "  11. App Shell"
+    echo "  ─────────────────────────────────────────────"
+    echo "  B.  Backup Database (volume-level .tar.gz)"
+    echo "  R.  Restore Database (choose from backups)"
     echo "  ─────────────────────────────────────────────"
     echo "  C.  Cleanup (containers, keep volumes)"
     echo "  0.  Exit"
@@ -224,6 +490,8 @@ while true; do
         9)  seed     ;;
         10) studio   ;;
         11) shell    ;;
+        [bB]) backup  ;;
+        [rR]) restore ;;
         [cC]) cleanup ;;
         0)  exit 0   ;;
         *)           ;;
