@@ -9,7 +9,7 @@ export default async function AdminCategoriesPage() {
     where: { parentId: null },
     include: {
       children: { select: { id: true, nameEs: true, nameEn: true } },
-      _count: { select: { products: true } },
+      _count: { select: { primaryProducts: true } },
     },
     orderBy: { createdAt: 'asc' },
   });

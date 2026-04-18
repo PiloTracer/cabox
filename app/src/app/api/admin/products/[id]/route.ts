@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/auth-guard';
+import { syncProductCatalogRelations } from '@/lib/sync-product-catalog';
 
 const patchSchema = z.object({
   nameEs: z.string().min(1).optional(),
@@ -15,7 +16,10 @@ const patchSchema = z.object({
   price: z.number().positive().optional(),
   comparePrice: z.number().positive().nullable().optional(),
   currency: z.enum(['CRC', 'USD']).optional(),
-  categoryId: z.string().nullable().optional(),
+  primaryCategoryId: z.string().min(1).optional(),
+  primaryDepartmentId: z.string().min(1).optional(),
+  categoryIds: z.array(z.string()).optional(),
+  departmentIds: z.array(z.string()).optional(),
   status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
   featured: z.boolean().optional(),
   stock: z.number().int().min(0).optional(),
@@ -24,14 +28,24 @@ const patchSchema = z.object({
   promotionalMedia: z.any().optional().nullable(),
 });
 
-interface Params { params: Promise<{ id: string }> }
+interface Params {
+  params: Promise<{ id: string }>;
+}
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
 
   const { id } = await params;
-  const product = await prisma.product.findUnique({ where: { id }, include: { category: true } });
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: {
+      primaryCategory: true,
+      primaryDepartment: true,
+      categories: { include: { category: true }, orderBy: { position: 'asc' } },
+      departments: { include: { department: true }, orderBy: { position: 'asc' } },
+    },
+  });
   if (!product) return NextResponse.json({ message: 'Not found' }, { status: 404 });
   return NextResponse.json(product);
 }
@@ -50,42 +64,72 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const data = parsed.data;
 
-  // Check slug uniqueness (exclude self)
   if (data.slug) {
     const conflict = await prisma.product.findFirst({ where: { slug: data.slug, id: { not: id } } });
     if (conflict) return NextResponse.json({ message: 'El slug ya existe.' }, { status: 409 });
   }
 
-  const product = await prisma.product.update({
-    where: { id },
-    data: {
-      ...(data.nameEs !== undefined && { nameEs: data.nameEs }),
-      ...(data.nameEn !== undefined && { nameEn: data.nameEn }),
-      ...(data.descriptionEs !== undefined && { descriptionEs: data.descriptionEs }),
-      ...(data.descriptionEn !== undefined && { descriptionEn: data.descriptionEn }),
-      ...(data.specsEs !== undefined && { specsEs: data.specsEs }),
-      ...(data.specsEn !== undefined && { specsEn: data.specsEn }),
-      ...(data.sku !== undefined && { sku: data.sku }),
-      ...(data.slug !== undefined && { slug: data.slug }),
-      ...(data.price !== undefined && { price: data.price }),
-      ...(data.comparePrice !== undefined && { compareAtPrice: data.comparePrice }),
-      ...(data.currency !== undefined && { currency: data.currency }),
-      ...(data.categoryId !== undefined && data.categoryId && { categoryId: data.categoryId }),
-      ...(data.status !== undefined && { status: data.status }),
-      ...(data.featured !== undefined && { featured: data.featured }),
-      ...(data.stock !== undefined && { stock: data.stock }),
-      ...(data.promotionalCopy !== undefined && { promotionalCopy: data.promotionalCopy }),
-      ...(data.promotionalMedia !== undefined && { promotionalMedia: data.promotionalMedia }),
-      ...(data.images !== undefined && { 
-        images: {
-          deleteMany: {},
-          create: data.images.map((url: string, i: number) => ({ url, position: i }))
-        }
-      }),
-    },
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+
+  const primaryCat = data.primaryCategoryId ?? existing.primaryCategoryId;
+  const primaryDept = data.primaryDepartmentId ?? existing.primaryDepartmentId;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.product.update({
+      where: { id },
+      data: {
+        ...(data.nameEs !== undefined && { nameEs: data.nameEs }),
+        ...(data.nameEn !== undefined && { nameEn: data.nameEn }),
+        ...(data.descriptionEs !== undefined && { descriptionEs: data.descriptionEs }),
+        ...(data.descriptionEn !== undefined && { descriptionEn: data.descriptionEn }),
+        ...(data.specsEs !== undefined && { specsEs: data.specsEs }),
+        ...(data.specsEn !== undefined && { specsEn: data.specsEn }),
+        ...(data.sku !== undefined && { sku: data.sku }),
+        ...(data.slug !== undefined && { slug: data.slug }),
+        ...(data.price !== undefined && { price: data.price }),
+        ...(data.comparePrice !== undefined && { compareAtPrice: data.comparePrice }),
+        ...(data.currency !== undefined && { currency: data.currency }),
+        ...(data.status !== undefined && { status: data.status }),
+        ...(data.featured !== undefined && { featured: data.featured }),
+        ...(data.stock !== undefined && { stock: data.stock }),
+        ...(data.promotionalCopy !== undefined && { promotionalCopy: data.promotionalCopy }),
+        ...(data.promotionalMedia !== undefined && { promotionalMedia: data.promotionalMedia }),
+        ...(data.images !== undefined && {
+          images: {
+            deleteMany: {},
+            create: data.images.map((url: string, i: number) => ({ url, position: i })),
+          },
+        }),
+      },
+    });
+
+    if (
+      data.primaryCategoryId !== undefined ||
+      data.primaryDepartmentId !== undefined ||
+      data.categoryIds !== undefined ||
+      data.departmentIds !== undefined
+    ) {
+      await syncProductCatalogRelations(tx, id, {
+        primaryCategoryId: primaryCat,
+        primaryDepartmentId: primaryDept,
+        categoryIds: data.categoryIds,
+        departmentIds: data.departmentIds,
+      });
+    }
+
+    return tx.product.findUnique({
+      where: { id },
+      include: {
+        primaryCategory: true,
+        primaryDepartment: true,
+        categories: { include: { category: true }, orderBy: { position: 'asc' } },
+        departments: { include: { department: true }, orderBy: { position: 'asc' } },
+      },
+    });
   });
 
-  return NextResponse.json(product);
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
@@ -94,7 +138,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
 
-  // Soft delete — archive instead of hard delete
   const product = await prisma.product.update({
     where: { id },
     data: { status: 'ARCHIVED' },

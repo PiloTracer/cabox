@@ -2,20 +2,70 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatCRC } from '@/lib/format';
+import {
+  countUnclassifiedProducts,
+  findUnclassifiedProductIds,
+} from '@/lib/departments';
 
-export default async function AdminProductsPage() {
-  const products = await prisma.product.findMany({
-    include: { category: true, images: { orderBy: { position: 'asc' }, take: 1 } },
-    orderBy: { createdAt: 'desc' },
-  });
+interface Props {
+  searchParams: Promise<{ filter?: string }>;
+}
+
+export default async function AdminProductsPage({ searchParams }: Props) {
+  const { filter } = await searchParams;
+  const showUnclassifiedOnly = filter === 'unclassified';
+
+  let extraWhere: import('@prisma/client').Prisma.ProductWhereInput = {};
+  if (showUnclassifiedOnly) {
+    const ids = await findUnclassifiedProductIds();
+    extraWhere =
+      ids.length > 0
+        ? { id: { in: ids } }
+        : { sku: '__FILTER_EMPTY_UNCLASSIFIED__' };
+  }
+
+  const [products, unclassifiedCount] = await Promise.all([
+    prisma.product.findMany({
+      where: extraWhere,
+      include: {
+        primaryCategory: true,
+        primaryDepartment: true,
+        images: { orderBy: { position: 'asc' }, take: 1 },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    countUnclassifiedProducts(),
+  ]);
 
   return (
     <div className="admin-page">
       <div className="admin-page-header">
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>Productos</h1>
-        <Link href="/admin/products/new" className="btn btn-primary">
-          + Nuevo producto
-        </Link>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>
+            {showUnclassifiedOnly ? 'Productos — solo General' : 'Productos'}
+          </h1>
+          {showUnclassifiedOnly && (
+            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.35rem', fontSize: '0.9rem' }}>
+              Productos enlazados únicamente al departamento General (revisión pendiente).
+            </p>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          {showUnclassifiedOnly ? (
+            <Link href="/admin/products" className="btn btn-secondary btn-sm">
+              Ver todos
+            </Link>
+          ) : (
+            unclassifiedCount > 0 && (
+              <Link href="/admin/products?filter=unclassified" className="btn btn-secondary btn-sm">
+                Solo General ({unclassifiedCount})
+              </Link>
+            )
+          )}
+          <Link href="/admin/products/new" className="btn btn-primary">
+            + Nuevo producto
+          </Link>
+        </div>
       </div>
 
       {products.length === 0 && (
@@ -33,6 +83,7 @@ export default async function AdminProductsPage() {
                 <th>Imagen</th>
                 <th>Nombre</th>
                 <th>Categoría</th>
+                <th>Departamento</th>
                 <th>Precio</th>
                 <th>Estado</th>
                 <th>Destacado</th>
@@ -59,7 +110,10 @@ export default async function AdminProductsPage() {
                         <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>SKU: {p.sku}</p>
                       </div>
                     </td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{p.category?.nameEs ?? '—'}</td>
+                    <td style={{ color: 'var(--color-text-muted)' }}>{p.primaryCategory?.nameEs ?? '—'}</td>
+                    <td style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                      {p.primaryDepartment?.nameEs ?? '—'}
+                    </td>
                     <td className="price">{formatCRC(p.price)}</td>
                     <td>
                       <span className={`badge badge-${p.status === 'ACTIVE' ? 'success' : p.status === 'DRAFT' ? 'warning' : 'muted'}`}>

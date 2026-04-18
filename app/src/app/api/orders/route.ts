@@ -80,6 +80,18 @@ export async function POST(req: NextRequest) {
     orderNumber = generateOrderNumber();
   }
 
+  const productIds = [...new Set(data.items.map((i) => i.productId))];
+  const productsSnap = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: {
+      id: true,
+      primaryDepartment: {
+        select: { slug: true, nameEs: true, nameEn: true },
+      },
+    },
+  });
+  const deptByProductId = Object.fromEntries(productsSnap.map((p) => [p.id, p.primaryDepartment]));
+
   const order = await prisma.order.create({
     data: {
       orderNumber,
@@ -98,14 +110,20 @@ export async function POST(req: NextRequest) {
       notes: data.notes ?? null,
       locale: 'es',
       items: {
-        create: data.items.map((item) => ({
-          productId: item.productId,
-          variantSku: item.variantSku ?? null,
-          nameEs: item.nameEs,
-          nameEn: item.nameEn,
-          quantity: item.quantity,
-          price: item.price,
-        })),
+        create: data.items.map((item) => {
+          const dept = deptByProductId[item.productId];
+          return {
+            productId: item.productId,
+            variantSku: item.variantSku ?? null,
+            nameEs: item.nameEs,
+            nameEn: item.nameEn,
+            quantity: item.quantity,
+            price: item.price,
+            departmentSlug: dept?.slug ?? null,
+            departmentNameEs: dept?.nameEs ?? null,
+            departmentNameEn: dept?.nameEn ?? null,
+          };
+        }),
       },
     },
     include: { items: true, customer: true },

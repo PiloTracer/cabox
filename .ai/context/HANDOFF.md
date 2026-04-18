@@ -1,138 +1,100 @@
 # Cabox — Session Handoff
 
-> **Last Updated**: 2026-04-17T15:45:00-06:00
+> **Last Updated**: 2026-04-17 (session close)  
 > **Session Date**: April 17, 2026
 
 ## Current Focus
 
-Phase 5 work in progress. Recent major additions:
+**Departments catalog** (plan: `.ai/plans/20260417_departments.md`) — implemented in application code; **database migration must be placed under Prisma migrations and applied before production can run the new schema.**
 
-### Recently Completed (April 2026)
-1. ✅ **Volume-level Backup/Restore** — Added to `bin/start.sh` (B/R menu options)
-   - Cold backup of PostgreSQL data directory
-   - Dev/Prd environment support with correct volume names
-   - PG_VERSION validation
-   - Automatic service stop/start with error recovery
+---
 
-### Previously Completed (March 2026)
-- ✅ Phase 4: Storefront Professional Enhancements (cart drawer, image zoom, skeletons, SEO)
-- ✅ WhatsApp notifications on order creation
-- ✅ Stripe checkout + webhook
-- ✅ PayPal webhook
-- ✅ AI ad generator (Gemini)
-- ✅ Share button
-- ✅ Order ticket system (payment proof upload)
-- ✅ Categories API (CRUD endpoints)
+## Recently Completed (this session)
+
+### Departments & storefront
+- **Schema** (`app/prisma/schema.prisma`): `Department`, `DepartmentCategory`, `DepartmentProduct`, `ProductCategory`; `Product` uses `primaryCategoryId` + `primaryDepartmentId`; `Category.primaryDepartmentId`; `OrderItem` department snapshot fields.
+- **Store**: Lobby home with department pills; **`[department]/layout.tsx`** (per-dept theme); **`[department]/page.tsx`** (featured + category pills); **`[department]/products/page.tsx`** (grid + filters); **`[department]/products/[slug]/page.tsx`** canonical PDP; legacy **`/products/[slug]`** redirects to canonical path.
+- **`Navbar`**: Dynamic departments from DB (replaces hardcoded category links).
+- **`ProductCard`**: Optional **`detailHref`** for canonical URLs.
+- **Libs**: `app/src/lib/departments.ts`, `product-urls.ts`, `theme.ts`, `sync-product-catalog.ts`.
+- **APIs**: Admin departments CRUD; products sync junctions; orders snapshot department on line items; public feeds/meta use department URLs.
+- **Admin**: **`/admin/departments`** list + sidebar link; products list **`?filter=unclassified`** (“Solo General”) + **Department** column; categories table fixed **`_count.primaryProducts`**.
+- **Sitemap** (`app/src/app/sitemap.ts`): Department homes, dept product indexes, canonical PDP URLs.
+
+### Migration (SQL — review before prod)
+- **Hardened script**: `app/prisma/manual-migrations/20260417180000_departments_catalog.sql`  
+  Idempotent-style guards, slug-based General department resolution, deduped junction inserts, `ADD COLUMN IF NOT EXISTS` on `OrderItem`.
+- **Preflight checks**: `app/scripts/preflight-departments-migration.sql` (run on a **prod snapshot** before deploy).
+- **Deploy path**: `app/docker-entrypoint.sh` runs **`npx prisma migrate deploy`** on container start — migration only runs if it exists as **`app/prisma/migrations/<timestamp>_departments_catalog/migration.sql`**.
+- **Blocker encountered**: Could not create `app/prisma/migrations/…` in-agent (**permission denied** on that tree). **Action for you**: `sudo chown` or copy the manual SQL into a new migration folder, then `prisma migrate deploy` on staging.
+
+---
 
 ## Docker Stack (dev)
 
-| Container        | Status      | Port (host)         |
-|------------------|-------------|---------------------|
-| `cabox_nginx`    | Up          | `:8080` (main entry)|
-| `cabox_app`      | Up          | internal `:3000`    |
-| `cabox_db`       | Up (healthy)| internal `5432`     |
-| `cabox_pgbouncer`| Up          | internal `5432`     |
-| `cabox_redis`    | Up          | internal `6379`     |
+| Container        | Role        | Port (host)          |
+|------------------|-------------|----------------------|
+| `cabox_nginx`    | Reverse proxy | `:8080` (main entry) |
+| `cabox_app`      | Next.js     | internal `:3000`     |
+| `cabox_db`       | PostgreSQL  | internal `5432`      |
+| `cabox_pgbouncer`| Pooling     | internal `5432`      |
+| `cabox_redis`    | Cache/rate limit | internal `6379` |
 
-**Start command**: `./bin/start.sh` (auto-detects env) or `./bin/start.sh dev`
-**Backup/Restore**: Select **B** or **R** in the menu
+**Start**: `./bin/start.sh` or `./bin/start.sh dev`  
 **URLs**: Store → `http://localhost:8080/es` | Admin → `http://localhost:8080/admin`
 
-## Uncommitted Changes
-
-Check `git status` for current state. Previous session (March 22) had storefront enhancements.
-
-### Key Files Modified Recently
-| File | Change |
-|------|--------|
-| `bin/start.sh` | Added backup/restore functions (B/R menu options) |
-| `.gitignore` | Added `backup/` directory |
-| `templates/env.dev.template` | Aligned structure with `.env.example` |
-| `.env.example` | Added comment line for alignment |
-| `.ai/context/*.md` | Updated with current feature status |
+---
 
 ## Known Issues / Blockers
 
-1. **Sitemap 500 in dev**: `http://localhost:8080/sitemap.xml` returns 500. Likely a Nginx proxy issue — the route works inside the Docker container on port 3000 but fails through the Nginx reverse proxy on 8080. Needs investigation of `nginx.conf` to ensure `/sitemap.xml` is properly forwarded.
-2. **VS Code TS lint errors**: Persistent false-positive "Cannot find module" errors because the IDE TS server runs against repo root, not inside Docker. Turbopack compiles correctly inside Docker.
-3. **PgBouncer & Prisma**: Prisma singleton uses `DATABASE_URL_DIRECT` (bypasses PgBouncer). Do not change.
-4. **Empty WhatsApp Plan**: `.ai/plans/20260322_whatsapp_plan.md` exists but is 0 bytes — should be populated or removed.
-5. **PWA Service Worker**: `@ducanh2912/next-pwa` is installed but service worker configuration needs verification.
-6. **Admin Categories Page**: API exists at `/api/admin/categories` but the admin page needs verification — sidebar link exists in `AdminSidebar.tsx`.
+1. **Prisma migration not in `prisma/migrations/`** — Production/staging will not apply departments DDL until the SQL is copied into a new migration directory and deployed.
+2. **Sitemap 500 via Nginx** — `/sitemap.xml` may 500 through `:8080` while OK on `:3000`; check `nginx.conf` proxy for `/sitemap.xml`.
+3. **IDE TS “cannot find module”** — Often false positive when TS runs at repo root; Docker/Turbopack build is source of truth.
+4. **PgBouncer**: Use **`DATABASE_URL_DIRECT`** for migrations and Prisma CLI (`schema.prisma` `directUrl`).
+5. **Empty plan file**: `.ai/plans/20260322_whatsapp_plan.md` still 0 bytes — populate or delete.
+6. **`npm install`** may need **`--legacy-peer-deps`** (Next 16 vs Sentry peer); broken `node_modules` may require clean reinstall before `next build`.
+
+---
 
 ## Git State
 
-Check current state with `git status`. Previous commit:
-```
-bd44e41 (HEAD -> master, origin/master) promotional material is saved
-```
+Run **`git status`** — do not rely on a fixed SHA here; commit when migration + ownership are resolved.
 
-**Pending changes**: Context files updated, backup/restore added to `bin/start.sh`, env templates aligned.
+---
 
-## Active Files (Key Areas)
+## Key Files (departments)
 
-### Infrastructure
-- `docker-compose.dev.yml` — full stack definition
-- `.env.dev` — all env vars (contains real ADMIN credentials)
-- `bin/start.sh` — orchestration script (migrate + seed + up)
-- `app/prisma/schema.prisma` — 18-model Prisma schema
-- `app/prisma/seed.ts` — seeds admin user + categories + sample products
+| Area | Paths |
+|------|--------|
+| Plan | `.ai/plans/20260417_departments.md` |
+| Migration SQL | `app/prisma/manual-migrations/20260417180000_departments_catalog.sql` |
+| Preflight | `app/scripts/preflight-departments-migration.sql` |
+| Entrypoint | `app/docker-entrypoint.sh` (`migrate deploy` then seed) |
+| Schema | `app/prisma/schema.prisma` |
+| Store routing | `app/src/app/[locale]/(store)/[department]/…`, `(store)/layout.tsx`, `(store)/page.tsx`, `products/page.tsx` |
+| Admin | `app/src/app/admin/(protected)/departments/page.tsx`, `products/page.tsx`, `components/admin/AdminSidebar.tsx` |
 
-### Backend / API
-- `app/src/lib/prisma.ts` — Prisma singleton using `DATABASE_URL_DIRECT`
-- `app/src/lib/auth.ts` — NextAuth.js credentials config
-- `app/src/app/api/orders/route.ts` — POST order creation
-- `app/src/app/api/admin/orders/[id]/route.ts` — GET, PATCH (status updates)
-- `app/src/app/api/admin/products/generate-ad/route.ts` — Gemini AI ad generation
+---
 
-### Storefront (`app/src/app/[locale]/(store)/`)
-- `layout.tsx` — Navbar + Footer + CartDrawer + Organization JSON-LD
-- `page.tsx` — home page (hero, category pills, featured products)
-- `products/page.tsx` — products grid with FilterBar + search
-- `products/loading.tsx` — skeleton loader (NEW)
-- `products/[slug]/page.tsx` — product detail (gallery, zoom, AddToCart, WhatsApp, share, promo media, JSON-LD)
-- `products/[slug]/loading.tsx` — skeleton loader (NEW)
-- `checkout/page.tsx` — 5 payment methods, order summary
-- `orders/[orderNumber]/page.tsx` — order status with progress steps
+## Atomic Next Steps (tomorrow)
 
-### Admin (`app/src/app/admin/`)
-- `login/page.tsx` — credentials login form
-- `page.tsx` — dashboard (stats + recent orders)
-- `products/page.tsx` — products table
-- `products/new/page.tsx` / `products/[id]/edit/page.tsx` — ProductForm with AI ad generator
-- `orders/page.tsx` — orders table with status filter tabs
-- `orders/[id]/page.tsx` — order detail with status management
-- `settings/page.tsx` — store config with tabbed UI
+1. **Fix ownership** on `app/prisma/migrations/` if needed; **copy** hardened SQL into `app/prisma/migrations/20260417200000_departments_catalog/migration.sql` (or `prisma migrate dev` name after folder exists).
+2. Run **`app/scripts/preflight-departments-migration.sql`** on a DB snapshot; then **`npx prisma migrate deploy`** (or compose exec) on staging.
+3. **`prisma generate`** + **`next build`** in app container; fix any remaining type errors.
+4. Deploy **app + migration together** in one release.
+5. (Optional) Stop masking seed failures in prod entrypoint — evaluate whether **`prisma db seed`** should run every container start (`docker-entrypoint.sh` currently `seed … || true`).
 
-### Components (key ones modified today)
-- `CartDrawer.tsx` — Global offcanvas cart drawer (Zustand-driven) (NEW)
-- `Navbar.tsx` — Now uses `openCart` from global store (no inline cart)
-- `ProductGallery.tsx` — Hover magnifier + lightbox modal
-- `ProductCardSkeleton.tsx` — Reusable skeleton (NEW)
-- `ShareButton.tsx` — Web Share API + clipboard fallback
-- `AddToCartButton.tsx` — triggers cart drawer via `addItem`
+---
 
-### State & Design
-- `src/stores/cart-store.ts` — Zustand + localStorage + `isCartOpen` UI state
-- `src/app/globals.css` — full design system tokens + all component CSS (1016 lines)
-- `src/messages/es.json` / `en.json` — i18n strings (include `cart` namespace)
+## Previously Completed (earlier phases)
 
-### SEO
-- `src/app/sitemap.ts` — Dynamic sitemap (products + categories + both locales) (NEW)
-- `src/app/robots.ts` — Blocks `/admin` + `/api`, points to sitemap (NEW)
+- Volume backup/restore in `bin/start.sh` (B/R menu).
+- Phase 4 storefront enhancements (cart drawer, zoom, skeletons, SEO).
+- Stripe/PayPal, WhatsApp order notifications, AI ads, share, order tickets, categories API.
 
-## Atomic Next Steps
-
-1. **Fix or Remove Empty Plan**: Populate `.ai/plans/20260322_whatsapp_plan.md` or delete it
-2. **Verify Admin Categories Page**: Ensure `/admin/categories` page exists and works (API is ready)
-3. **Complete PWA Configuration**: Verify service worker and manifest configuration
-4. **Fix Sitemap 500**: Investigate Nginx config for `/sitemap.xml` proxy pass
-5. **Test Backup/Restore**: Run a test backup (B) and verify restore (R) works correctly
-6. **Future: StripeConnect** — payouts for marketplace (if needed)
-7. **Future: Inventory variants UI** — `ProductVariant` model exists; wire into ProductForm
+---
 
 ## Environment
 
-- **Active environment**: `dev`
-- **Branch**: `master`
-- **Remote**: `origin/master` (github.com/PiloTracer/cabox)
+- **Branch**: `master` (verify with `git branch`)
+- **Remote**: `origin` → `github.com/PiloTracer/cabox`

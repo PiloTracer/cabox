@@ -45,7 +45,14 @@ export async function DELETE(
 
   // Prevent deletion if products or children exist
   const [productCount, childCount] = await Promise.all([
-    prisma.product.count({ where: { categoryId: id } }),
+    prisma.product.count({
+      where: {
+        OR: [
+          { primaryCategoryId: id },
+          { categories: { some: { categoryId: id } } },
+        ],
+      },
+    }),
     prisma.category.count({ where: { parentId: id } }),
   ]);
 

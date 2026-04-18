@@ -3,26 +3,44 @@ import ProductCard from '@/components/store/ProductCard';
 import { getLocale } from 'next-intl/server';
 import type { Metadata } from 'next';
 import FilterBar from '@/components/store/FilterBar';
+import { notFound } from 'next/navigation';
 import { productDetailPath } from '@/lib/product-urls';
-
-export const metadata: Metadata = {
-  title: 'Productos — Cabox',
-  description: 'Explora nuestra colección completa de moda.',
-};
+import { getDepartmentBySlug } from '@/lib/departments';
 
 interface Props {
+  params: Promise<{ department: string }>;
   searchParams: Promise<{ cat?: string; q?: string }>;
 }
 
-export default async function ProductsPage({ searchParams }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { department: deptSlug } = await params;
+  const dept = await getDepartmentBySlug(deptSlug);
+  if (!dept) return { title: 'Departamento' };
+  return {
+    title: `${dept.nameEs} — Productos — Cabox`,
+    description: dept.taglineEs || `Productos en ${dept.nameEs}`,
+  };
+}
+
+export default async function DepartmentProductsPage({ params, searchParams }: Props) {
   const locale = await getLocale();
+  const { department: deptSlug } = await params;
   const { cat, q } = await searchParams;
 
-  const categories = await prisma.category.findMany({ orderBy: { nameEs: 'asc' } });
+  const dept = await getDepartmentBySlug(deptSlug);
+  if (!dept) notFound();
+
+  const dc = await prisma.departmentCategory.findMany({
+    where: { departmentId: dept.id },
+    include: { category: true },
+    orderBy: { position: 'asc' },
+  });
+  const categories = dc.map((r) => r.category);
 
   const products = await prisma.product.findMany({
     where: {
       status: 'ACTIVE',
+      departments: { some: { departmentId: dept.id } },
       ...(cat
         ? {
             OR: [
@@ -50,26 +68,35 @@ export default async function ProductsPage({ searchParams }: Props) {
 
   const activeCategory = categories.find((c) => c.slug === cat);
   const title = activeCategory
-    ? (locale === 'es' ? activeCategory.nameEs : activeCategory.nameEn)
-    : 'Todos los productos';
+    ? locale === 'es'
+      ? activeCategory.nameEs
+      : activeCategory.nameEn
+    : locale === 'es'
+      ? dept.nameEs
+      : dept.nameEn;
 
   return (
     <>
-      {/* Page hero */}
       <div className="page-hero">
         <div className="container">
           <h1>{title}</h1>
-          <p>{products.length} {products.length === 1 ? 'producto' : 'productos'} disponibles</p>
+          <p>
+            {products.length} {products.length === 1 ? 'producto' : 'productos'} disponibles
+          </p>
         </div>
       </div>
 
       <div className="container">
-        {/* Filter bar */}
         <FilterBar categories={categories} activeCat={cat} locale={locale} />
 
-        {/* Product grid */}
         {products.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--color-text-muted)' }}>
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '4rem 0',
+              color: 'var(--color-text-muted)',
+            }}
+          >
             <p style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</p>
             <h2>Sin resultados</h2>
             <p>No encontramos productos para tu búsqueda.</p>

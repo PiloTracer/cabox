@@ -1,9 +1,10 @@
 import { getTranslations, getLocale } from 'next-intl/server';
 import Link from 'next/link';
-import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import ProductCard from '@/components/store/ProductCard';
 import type { Metadata } from 'next';
+import { getActiveDepartments } from '@/lib/departments';
+import { departmentHomePath, productDetailPath } from '@/lib/product-urls';
 
 export const metadata: Metadata = {
   title: 'Cabox — Moda Curada de Costa Rica',
@@ -14,20 +15,18 @@ export default async function HomePage() {
   const t = await getTranslations('home');
   const locale = await getLocale();
 
-  // Featured products
+  const departments = await getActiveDepartments();
+
   const featured = await prisma.product.findMany({
     where: { status: 'ACTIVE', featured: true },
-    include: { category: true, images: { orderBy: { position: 'asc' } } },
+    include: {
+      primaryCategory: true,
+      primaryDepartment: true,
+      images: { orderBy: { position: 'asc' } },
+    },
     orderBy: { createdAt: 'desc' },
     take: 4,
   });
-
-  const fmt = (p: { price: number; currency: string }) =>
-    new Intl.NumberFormat('es-CR', {
-      style: 'currency',
-      currency: p.currency === 'USD' ? 'USD' : 'CRC',
-      maximumFractionDigits: 0,
-    }).format(p.price);
 
   return (
     <>
@@ -43,9 +42,14 @@ export default async function HomePage() {
                 <Link href={`/${locale}/products`} className="btn btn-primary btn-lg">
                   {t('shopNow')}
                 </Link>
-                <Link href={`/${locale}/products?cat=accesorios`} className="btn btn-secondary btn-lg">
-                  Accesorios
-                </Link>
+                {departments[0] && (
+                  <Link
+                    href={departmentHomePath(locale, departments[0].slug)}
+                    className="btn btn-secondary btn-lg"
+                  >
+                    {locale === 'es' ? departments[0].nameEs : departments[0].nameEn}
+                  </Link>
+                )}
               </div>
             </div>
             <div className="store-hero-image">
@@ -61,22 +65,26 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Category pills */}
-      <section className="section" style={{ paddingBlock: '2.5rem' }}>
-        <div className="container">
-          <div className="category-pills">
-            {[
-              { slug: 'mujeres', label: '👗 Mujeres' },
-              { slug: 'hombres', label: '👔 Hombres' },
-              { slug: 'accesorios', label: '👜 Accesorios' },
-            ].map((c) => (
-              <Link key={c.slug} href={`/${locale}/products?cat=${c.slug}`} className="category-pill">
-                {c.label}
-              </Link>
-            ))}
+      {departments.length > 0 && (
+        <section className="section" style={{ paddingBlock: '2.5rem' }}>
+          <div className="container">
+            <div className="section-header" style={{ marginBottom: '1.25rem' }}>
+              <h2>{locale === 'es' ? 'Departamentos' : 'Departments'}</h2>
+            </div>
+            <div className="category-pills">
+              {departments.map((d) => (
+                <Link
+                  key={d.slug}
+                  href={departmentHomePath(locale, d.slug)}
+                  className="category-pill"
+                >
+                  {locale === 'es' ? d.nameEs : d.nameEn}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Featured products */}
       {featured.length > 0 && (
@@ -92,8 +100,24 @@ export default async function HomePage() {
               {featured.map((product) => (
                 <ProductCard
                   key={product.id}
-                  product={{ ...product, comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : null, price: Number(product.price), images: product.images.map((img: any) => img.url) }}
+                  product={{
+                    ...product,
+                    comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
+                    price: Number(product.price),
+                    images: product.images.map((img) => img.url),
+                    category: product.primaryCategory
+                      ? {
+                          slug: product.primaryCategory.slug,
+                          nameEs: product.primaryCategory.nameEs,
+                        }
+                      : null,
+                  }}
                   locale={locale}
+                  detailHref={productDetailPath(
+                    locale,
+                    product.primaryDepartment.slug,
+                    product.slug,
+                  )}
                 />
               ))}
             </div>

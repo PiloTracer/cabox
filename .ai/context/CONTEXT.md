@@ -1,6 +1,6 @@
 # Cabox — Curated Fashion PWA Store
 
-> **Last Updated**: 2026-04-17
+> **Last Updated**: 2026-04-17 (session close — see HANDOFF)
 > **License**: Copyright (c) 2026 Alejandro Castro. All rights reserved.
 
 ## Core Identity
@@ -64,7 +64,9 @@
 ## Development Status
 - **Current Phase**: Phase 5 — Core Integrations (in progress)
 - **Completed**: Phase 4 — Storefront Professional Enhancements (cart drawer, image zoom, skeletons, SEO schema)
+- **Active feature thread**: **Departments** (mini-storefronts above categories) — code merged in repo; **Prisma migration** must be filed under `app/prisma/migrations/` and applied on each environment (see `.ai/context/HANDOFF.md`).
 - **Implementation Plan**: `.ai/plans/20260321_pwa_ecommerce_plan.md`
+- **Departments Plan**: `.ai/plans/20260417_departments.md`
 - **Recently Added**: Volume-level backup/restore in `bin/start.sh`
 
 ## Feature Implementation Status
@@ -78,11 +80,13 @@
 | **Categories Admin UI** | ⚠️ Partial | API ready, sidebar link exists, page needs verification |
 | **PWA** | ⚠️ Partial | `@ducanh2912/next-pwa` installed, manifest exists, service worker config needed |
 | **Backup/Restore** | ✅ Implemented | Volume-level backup in `bin/start.sh` (B/R menu options) |
+| **Departments (catalog + routing)** | ✅ Code / ⚠️ DB | Store admin + APIs + `[department]` routes; apply migration from `app/prisma/manual-migrations/…` → `prisma/migrations/` |
 | **WhatsApp Plan** | ❌ Empty | `.ai/plans/20260322_whatsapp_plan.md` is 0 bytes |
 
 ## Next Steps
-1. Complete PWA service worker configuration
-2. Verify admin categories management page
-3. Populate or remove empty WhatsApp plan file
-4. StripeConnect/payouts (future)
-5. Inventory variants UI
+1. **Apply departments migration** on staging/production (copy SQL into `prisma/migrations/`, `migrate deploy`, then deploy app) — details in `.ai/context/HANDOFF.md`
+2. Complete PWA service worker configuration
+3. Verify admin categories management page
+4. Populate or remove empty WhatsApp plan file
+5. StripeConnect/payouts (future)
+6. Inventory variants UI

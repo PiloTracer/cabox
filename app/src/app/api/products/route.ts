@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const where = {
     status: 'ACTIVE' as const,
     ...(featured !== undefined && { featured }),
-    ...(category  && { category: { slug: category } }),
+    ...(category && { primaryCategory: { slug: category } }),
     ...(search    && {
       OR: [
         { nameEs: { contains: search, mode: 'insensitive' as const } },
@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
     prisma.product.findMany({
       where,
       include: {
-        category: { select: { slug: true, nameEs: true, nameEn: true } },
+        primaryCategory: { select: { slug: true, nameEs: true, nameEn: true } },
+        primaryDepartment: { select: { slug: true, nameEs: true, nameEn: true } },
         images:   { orderBy: { position: 'asc' }, take: 2 },
         variants: { select: { id: true, nameEs: true, sku: true, price: true, stock: true } },
       },

@@ -9,7 +9,7 @@ interface Category {
   nameEn: string;
   slug: string;
   image?: string | null;
-  _count: { products: number };
+  _count: { primaryProducts: number };
   children: { id: string; nameEs: string; nameEn: string }[];
 }
 
@@ -143,15 +143,15 @@ export default function CategoriesClient({ categories }: Props) {
                 </td>
                 <td style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{cat.slug}</td>
                 <td style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{cat.children.length}</td>
-                <td style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{cat._count.products}</td>
+                <td style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{cat._count.primaryProducts}</td>
                 <td>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <button
                       onClick={() => handleDelete(cat.id)}
-                      disabled={isPending || cat._count.products > 0 || cat.children.length > 0}
+                      disabled={isPending || cat._count.primaryProducts > 0 || cat.children.length > 0}
                       className="btn btn-sm"
-                      style={{ color: 'var(--color-accent)', border: '1px solid var(--color-accent)', background: 'transparent', opacity: (cat._count.products > 0 || cat.children.length > 0) ? 0.4 : 1 }}
-                      title={cat._count.products > 0 ? 'Tiene productos, no se puede eliminar' : cat.children.length > 0 ? 'Tiene subcategorías' : 'Eliminar'}
+                      style={{ color: 'var(--color-accent)', border: '1px solid var(--color-accent)', background: 'transparent', opacity: (cat._count.primaryProducts > 0 || cat.children.length > 0) ? 0.4 : 1 }}
+                      title={cat._count.primaryProducts > 0 ? 'Tiene productos, no se puede eliminar' : cat.children.length > 0 ? 'Tiene subcategorías' : 'Eliminar'}
                     >
                       Eliminar
                     </button>

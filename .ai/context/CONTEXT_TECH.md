@@ -1,6 +1,6 @@
 # Cabox — Technology Stack & Development Reference
 
-> **Last Updated**: 2026-04-17
+> **Last Updated**: 2026-04-17 (session close)
 
 ## Frontend Technologies
 
@@ -50,9 +50,11 @@
 ### Database & ORM
 - **PostgreSQL 16** (Alpine, Docker container)
 - **Prisma 6**: ORM with type-safe client
-  - 18 models: User, Category, Product, ProductVariant, ProductReference, InventoryRecord, Customer, Order, OrderItem, Invoice, ShippingZone, Promotion, Coupon, PriceChangeLog
-  - Migrations: `npx prisma migrate dev` (inside container)
+  - **21 models** (includes **Department**, **DepartmentCategory**, **DepartmentProduct**, **ProductCategory**, **StoreSettings**, **OrderTicket**, etc.)
+  - Catalog: products link to **primary** category + department and optional **many-to-many** via junction tables
+  - Migrations: `npx prisma migrate deploy` on container start (`app/docker-entrypoint.sh`); dev: `npx prisma migrate dev` (inside container)
   - Studio: `npx prisma studio` on port 5555
+  - **Departments DDL**: hardened SQL in `app/prisma/manual-migrations/20260417180000_departments_catalog.sql` — must live under `app/prisma/migrations/` for deploy to apply it
 
 ### API Layer
 - **Next.js API Routes** (Route Handlers in App Router)

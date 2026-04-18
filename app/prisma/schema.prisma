@@ -1,5 +1,5 @@
 // This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// learn more about it in the docs: https://prisma.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -28,54 +28,128 @@ enum Role {
   SUPER_ADMIN
 }
 
+// ── Departments (above categories — mini-storefronts) ────────
+model Department {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  nameEn          String
+  nameEs          String
+  taglineEn       String   @default("")
+  taglineEs       String   @default("")
+  isActive        Boolean  @default(true)
+  isDefault       Boolean  @default(false)
+  position        Int      @default(0)
+  heroImageUrl    String?
+  logoUrl         String?
+  theme           Json     @default("{}")
+  navOverrideJson Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  categories        DepartmentCategory[]
+  products          DepartmentProduct[]
+  primaryProducts   Product[]            @relation("PrimaryDepartmentProducts")
+  primaryCategories Category[]           @relation("PrimaryDepartmentCategories")
+
+  @@index([isActive])
+  @@index([position])
+}
+
+model DepartmentCategory {
+  departmentId String
+  categoryId   String
+  position     Int      @default(0)
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([departmentId, categoryId])
+  @@index([categoryId])
+}
+
+model DepartmentProduct {
+  departmentId String
+  productId    String
+  position     Int      @default(0)
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([departmentId, productId])
+  @@index([productId])
+}
+
+model ProductCategory {
+  productId  String
+  categoryId String
+  position   Int      @default(0)
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+}
+
 // ── Product Catalog ──────────────────────────────────────────
 model Category {
-  id        String     @id @default(cuid())
-  slug      String     @unique
-  nameEn    String
-  nameEs    String
-  image     String?
-  parentId  String?
-  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id])
-  children  Category[] @relation("SubCategories")
-  products  Product[]
-  createdAt DateTime   @default(now())
+  id                  String               @id @default(cuid())
+  slug                String               @unique
+  nameEn              String
+  nameEs              String
+  image               String?
+  parentId            String?
+  parent              Category?            @relation("SubCategories", fields: [parentId], references: [id])
+  children            Category[]           @relation("SubCategories")
+  primaryDepartmentId String
+  primaryDepartment   Department           @relation("PrimaryDepartmentCategories", fields: [primaryDepartmentId], references: [id], onDelete: Restrict)
+  primaryProducts     Product[]            @relation("PrimaryCategoryProducts")
+  departments         DepartmentCategory[]
+  productCategories   ProductCategory[]
+  createdAt           DateTime             @default(now())
+
+  @@index([primaryDepartmentId])
 }
 
 model Product {
-  id             String         @id @default(cuid())
-  sku            String         @unique
-  slug           String         @unique
+  id             String          @id @default(cuid())
+  sku            String          @unique
+  slug           String          @unique
   nameEn         String
   nameEs         String
-  descriptionEn  String         @db.Text
-  descriptionEs  String         @db.Text
-  specsEs        String         @default("") @db.Text
-  specsEn        String         @default("") @db.Text
-  price          Decimal        @db.Decimal(10, 2)
-  compareAtPrice Decimal?       @db.Decimal(10, 2)
-  costPrice      Decimal?       @db.Decimal(10, 2)
-  currency       Currency       @default(CRC)
-  weight         Decimal?       @db.Decimal(8, 2) // grams
+  descriptionEn  String          @db.Text
+  descriptionEs  String          @db.Text
+  specsEs        String          @default("") @db.Text
+  specsEn        String          @default("") @db.Text
+  price          Decimal         @db.Decimal(10, 2)
+  compareAtPrice Decimal?        @db.Decimal(10, 2)
+  costPrice      Decimal?        @db.Decimal(10, 2)
+  currency       Currency        @default(CRC)
+  weight         Decimal?        @db.Decimal(8, 2) // grams
   dimensions     Json? // { length, width, height in cm }
-  status         ProductStatus  @default(DRAFT)
-  featured       Boolean        @default(false)
-  stock          Int            @default(0)
-  categoryId     String
-  category       Category       @relation(fields: [categoryId], references: [id])
-  images         ProductImage[]
-  variants       ProductVariant[]
-  inventory      InventoryRecord[]
-  orderItems     OrderItem[]
-  referenceData  ProductReference?
-  priceHistory   PriceChangeLog[]
-  tags           String[]
+  status         ProductStatus   @default(DRAFT)
+  featured       Boolean         @default(false)
+  stock          Int             @default(0)
+  primaryCategoryId   String
+  primaryCategory     Category        @relation("PrimaryCategoryProducts", fields: [primaryCategoryId], references: [id], onDelete: Restrict)
+  primaryDepartmentId String
+  primaryDepartment   Department      @relation("PrimaryDepartmentProducts", fields: [primaryDepartmentId], references: [id], onDelete: Restrict)
+  categories      ProductCategory[]
+  departments     DepartmentProduct[]
+  images          ProductImage[]
+  variants        ProductVariant[]
+  inventory       InventoryRecord[]
+  orderItems      OrderItem[]
+  referenceData   ProductReference?
+  priceHistory    PriceChangeLog[]
+  tags            String[]
   promotionalCopy Json? // AI generated ads per platform
   promotionalMedia Json?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  @@index([categoryId])
+  @@index([primaryCategoryId])
+  @@index([primaryDepartmentId])
   @@index([status])
   @@index([featured])
   @@index([createdAt(sort: Desc)])
@@ -102,32 +176,32 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id         String  @id @default(cuid())
+  id         String   @id @default(cuid())
   nameEn     String // e.g. "Red / Large"
   nameEs     String
-  sku        String  @unique
+  sku        String   @unique
   price      Decimal? @db.Decimal(10, 2) // overrides base price when set
-  stock      Int     @default(0)
+  stock      Int      @default(0)
   attributes Json // { color: "red", size: "L" }
   productId  String
-  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 // ── AI Product Research (Admin) ──────────────────────────────
 model ProductReference {
-  id                String    @id @default(cuid())
-  productId         String    @unique
-  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  referenceImageUrl String?
-  visionLabels      Json? // Google Vision API output
-  aiSpecs           Json? // Perplexity structured specs
-  aiDescription     Json? // { en: "...", es: "..." }
-  marketPrices      Json? // [{ source: "amazon", price: 29.99, url: "..." }, ...]
-  suggestedPrice    Decimal?  @db.Decimal(10, 2)
-  promoImages       Json? // [{ url, source, thumbnail }]
-  lastResearchedAt  DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  productId           String    @unique
+  product             Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  referenceImageUrl   String?
+  visionLabels        Json? // Google Vision API output
+  aiSpecs             Json? // Perplexity structured specs
+  aiDescription       Json? // { en: "...", es: "..." }
+  marketPrices        Json? // [{ source: "amazon", price: 29.99, url: "..." }, ...]
+  suggestedPrice      Decimal?  @db.Decimal(10, 2)
+  promoImages         Json? // [{ url, source, thumbnail }]
+  lastResearchedAt    DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 // ── Inventory ────────────────────────────────────────────────
@@ -228,7 +302,7 @@ model OrderTicket {
   orderNumber String       // denormalised — customer looks up by this
   type        TicketType   @default(PAYMENT_PROOF)
   attachments Json         @default("[]") // String[] of /uploads/proofs/* URLs, max 2
-  message     String?      // optional customer note
+  message     String? // optional customer note
   status      TicketStatus @default(OPEN)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -253,16 +327,19 @@ enum TicketStatus {
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  variantSku String?
-  nameEn    String // snapshot at order time
-  nameEs    String
-  price     Decimal @db.Decimal(10, 2)
-  quantity  Int
+  id               String  @id @default(cuid())
+  orderId          String
+  order            Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product @relation(fields: [productId], references: [id])
+  variantSku       String?
+  nameEn           String // snapshot at order time
+  nameEs           String
+  price            Decimal @db.Decimal(10, 2)
+  quantity         Int
+  departmentSlug   String?
+  departmentNameEs String?
+  departmentNameEn String?
 }
 
 // ── Invoicing ────────────────────────────────────────────────

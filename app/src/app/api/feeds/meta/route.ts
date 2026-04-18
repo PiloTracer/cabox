@@ -5,7 +5,11 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   const products = await prisma.product.findMany({
     where:   { status: 'ACTIVE' },
-    include: { images: { orderBy: { position: 'asc' }, take: 5 }, category: true },
+    include: {
+      images: { orderBy: { position: 'asc' }, take: 5 },
+      primaryCategory: true,
+      primaryDepartment: true,
+    },
     orderBy: { createdAt: 'desc' },
     take:    500,
   });
@@ -19,7 +23,7 @@ export async function GET() {
     <id>${escapeXml(p.id)}</id>
     <title>${escapeXml(p.nameEs)}</title>
     <description>${escapeXml(p.descriptionEs.slice(0, 5000))}</description>
-    <link>${storeUrl}/es/products/${escapeXml(p.slug)}</link>
+    <link>${storeUrl}/es/${escapeXml(p.primaryDepartment.slug)}/products/${escapeXml(p.slug)}</link>
     <image_link>${p.images[0] ? escapeXml(p.images[0].url) : ''}</image_link>
     ${images}
     <price>${escapeXml(price)}</price>
@@ -27,8 +31,8 @@ export async function GET() {
     <condition>new</condition>
     <brand>Cabox</brand>
     <google_product_category>Apparel &amp; Accessories</google_product_category>
-    <custom_label_0>${escapeXml(p.category?.nameEs ?? '')}</custom_label_0>
-    <checkout_url>${storeUrl}/es/products/${escapeXml(p.slug)}</checkout_url>
+    <custom_label_0>${escapeXml(p.primaryCategory?.nameEs ?? '')}</custom_label_0>
+    <checkout_url>${storeUrl}/es/${escapeXml(p.primaryDepartment.slug)}/products/${escapeXml(p.slug)}</checkout_url>
   </item>`;
   }).join('\n');
 

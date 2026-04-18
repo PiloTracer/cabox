@@ -18,9 +18,11 @@ interface Product {
 interface ProductCardProps {
   product: Product;
   locale: string;
+  /** Full path to PDP; defaults to legacy `/locale/products/slug` (redirects to canonical). */
+  detailHref?: string;
 }
 
-export default function ProductCard({ product, locale }: ProductCardProps) {
+export default function ProductCard({ product, locale, detailHref }: ProductCardProps) {
   const name = locale === 'es' ? product.nameEs : product.nameEn;
   const hasDiscount = product.comparePrice && product.comparePrice > product.price;
   const discountPct = hasDiscount
@@ -35,9 +37,10 @@ export default function ProductCard({ product, locale }: ProductCardProps) {
     }).format(n);
 
   const imageSrc = product.images?.[0] ?? null;
+  const href = detailHref ?? `/${locale}/products/${product.slug}`;
 
   return (
-    <Link href={`/${locale}/products/${product.slug}`} className="product-card">
+    <Link href={href} className="product-card">
       {/* Image */}
       <div className="product-card-img">
         {imageSrc ? (

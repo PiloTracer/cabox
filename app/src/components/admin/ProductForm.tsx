@@ -13,13 +13,25 @@ import { AdGenerator, PromotionalAd } from './AdGenerator';
 import AdMediaGallery, { PromotionalMedia } from './AdMediaGallery';
 
 interface Category { id: string; nameEs: string; slug: string; }
+
+interface DeptOpt {
+  id: string;
+  slug: string;
+  nameEs: string;
+  isActive?: boolean;
+}
+
 interface ProductData {
   nameEs: string; nameEn: string;
   descriptionEs: string; descriptionEn: string;
   specsEs: string; specsEn: string;
   sku: string; slug: string;
   price: string; comparePrice: string;
-  currency: string; categoryId: string;
+  currency: string;
+  primaryCategoryId: string;
+  primaryDepartmentId: string;
+  /** Additional department IDs (primary is separate — must also appear here when syncing) */
+  extraDepartmentIds: string;
   status: string; featured: boolean;
   stock: string;
   images: string;
@@ -31,7 +43,11 @@ const EMPTY: ProductData = {
   nameEs: '', nameEn: '', descriptionEs: '', descriptionEn: '',
   specsEs: '', specsEn: '',
   sku: '', slug: '', price: '', comparePrice: '',
-  currency: 'CRC', categoryId: '', status: 'DRAFT',
+  currency: 'CRC',
+  primaryCategoryId: '',
+  primaryDepartmentId: '',
+  extraDepartmentIds: '',
+  status: 'DRAFT',
   featured: false, stock: '0', images: '', promotionalCopy: [], promotionalMedia: [],
 };
 
@@ -64,8 +80,28 @@ export default function ProductForm({
   const [selectedImgs,setSelectedImgs] = useState<Set<string>>(new Set());
   const [searchingImages, setSearchingImages] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [departments, setDepartments] = useState<DeptOpt[]>([]);
 
   const isEdit = Boolean(productId);
+
+  useEffect(() => {
+    fetch('/api/admin/departments')
+      .then((r) => r.json())
+      .then((rows: DeptOpt[]) => {
+        if (!Array.isArray(rows)) return;
+        setDepartments(rows.filter((d) => d.isActive !== false));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (isEdit || departments.length === 0) return;
+    setData((d) => {
+      if (d.primaryDepartmentId) return d;
+      const gen = departments.find((x) => x.slug === 'general');
+      return gen ? { ...d, primaryDepartmentId: gen.id } : d;
+    });
+  }, [departments, isEdit]);
 
   const set = (k: keyof ProductData, v: string | boolean) =>
     setData((d) => ({ ...d, [k]: v }));
@@ -239,7 +275,7 @@ export default function ProductForm({
         price:         json.suggestedPriceCRC ? String(json.suggestedPriceCRC) : d.price,
         comparePrice:  json.suggestedCompareAtPriceCRC ? String(json.suggestedCompareAtPriceCRC) : d.comparePrice,
         featured:      Boolean(json.featured ?? d.featured),
-        categoryId:    matchCategory(json.category as string, categories) || d.categoryId,
+        primaryCategoryId: matchCategory(json.category as string, categories) || d.primaryCategoryId,
         promotionalCopy: json.promotionalCopy || d.promotionalCopy,
         promotionalMedia: json.promotionalMedia || d.promotionalMedia,
       }));
@@ -329,7 +365,16 @@ export default function ProductForm({
     setLoading(true);
     setError('');
 
-    const payload: any = {
+    const extras = data.extraDepartmentIds
+      .split(/[\s,]+/)
+      .filter(Boolean);
+
+    const deptIdsOrdered = [
+      data.primaryDepartmentId,
+      ...extras.filter((id) => id !== data.primaryDepartmentId),
+    ];
+
+    const payload: Record<string, unknown> = {
       nameEs: data.nameEs,
       nameEn: data.nameEn,
       descriptionEs: data.descriptionEs,
@@ -341,7 +386,10 @@ export default function ProductForm({
       price: parseFloat(data.price),
       comparePrice: data.comparePrice ? parseFloat(data.comparePrice) : null,
       currency: data.currency,
-      categoryId: data.categoryId || null,
+      primaryCategoryId: data.primaryCategoryId,
+      primaryDepartmentId: data.primaryDepartmentId,
+      departmentIds: deptIdsOrdered.length ? deptIdsOrdered : undefined,
+      categoryIds: data.primaryCategoryId ? [data.primaryCategoryId] : undefined,
     };
 
     if (data.status) payload.status = data.status;
@@ -896,8 +944,42 @@ export default function ProductForm({
             <div className="card card-body">
               <h3 className="form-section-title">Organización</h3>
               <div className="form-group">
-                <label className="form-label">Categoría{hasAI && aiBadge}</label>
-                <select className="input" value={data.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
+                <label className="form-label">Departamento principal *</label>
+                <select
+                  className="input"
+                  value={data.primaryDepartmentId}
+                  onChange={(e) => set('primaryDepartmentId', e.target.value)}
+                  required
+                >
+                  <option value="">Seleccioná…</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.nameEs} ({d.slug})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">
+                  Departamentos adicionales (IDs, coma o espacio — opcional)
+                </label>
+                <input
+                  className="input"
+                  type="text"
+                  value={data.extraDepartmentIds}
+                  onChange={(e) => set('extraDepartmentIds', e.target.value)}
+                  placeholder="ej: id1, id2"
+                />
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.35rem' }}>
+                  El departamento principal define la URL canónica. General suele incluirse hasta reclasificar.
+                </p>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Categoría principal *{hasAI && aiBadge}</label>
+                <select
+                  className="input"
+                  value={data.primaryCategoryId}
+                  onChange={(e) => set('primaryCategoryId', e.target.value)}
+                  required
+                >
                   <option value="">Sin categoría</option>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.nameEs}</option>)}
                 </select>

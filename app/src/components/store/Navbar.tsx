@@ -8,11 +8,18 @@ import { useState, useEffect } from 'react';
 import { useCartStore } from '@/stores/cart-store';
 import { formatCRC } from '@/lib/format';
 
-interface NavbarProps {
-  locale: string;
+export interface NavDepartment {
+  slug: string;
+  nameEs: string;
+  nameEn: string;
 }
 
-export default function Navbar({ locale }: NavbarProps) {
+interface NavbarProps {
+  locale: string;
+  departments?: NavDepartment[];
+}
+
+export default function Navbar({ locale, departments = [] }: NavbarProps) {
   const t = useTranslations('nav');
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -44,9 +51,11 @@ export default function Navbar({ locale }: NavbarProps) {
           {/* Desktop nav */}
           <nav className="navbar-links">
             <Link href={`${base}/products`} className="navbar-link">{t('products')}</Link>
-            <Link href={`${base}/products?cat=mujeres`} className="navbar-link">Mujeres</Link>
-            <Link href={`${base}/products?cat=hombres`} className="navbar-link">Hombres</Link>
-            <Link href={`${base}/products?cat=accesorios`} className="navbar-link">Accesorios</Link>
+            {departments.map((d) => (
+              <Link key={d.slug} href={`${base}/${d.slug}`} className="navbar-link">
+                {locale === 'es' ? d.nameEs : d.nameEn}
+              </Link>
+            ))}
           </nav>
 
           {/* Actions */}
@@ -80,9 +89,16 @@ export default function Navbar({ locale }: NavbarProps) {
         {menuOpen && (
           <div className="mobile-menu">
             <Link href={`${base}/products`} className="mobile-menu-link" onClick={() => setMenuOpen(false)}>{t('products')}</Link>
-            <Link href={`${base}/products?cat=mujeres`} className="mobile-menu-link" onClick={() => setMenuOpen(false)}>Mujeres</Link>
-            <Link href={`${base}/products?cat=hombres`} className="mobile-menu-link" onClick={() => setMenuOpen(false)}>Hombres</Link>
-            <Link href={`${base}/products?cat=accesorios`} className="mobile-menu-link" onClick={() => setMenuOpen(false)}>Accesorios</Link>
+            {departments.map((d) => (
+              <Link
+                key={d.slug}
+                href={`${base}/${d.slug}`}
+                className="mobile-menu-link"
+                onClick={() => setMenuOpen(false)}
+              >
+                {locale === 'es' ? d.nameEs : d.nameEn}
+              </Link>
+            ))}
           </div>
         )}
       </header>

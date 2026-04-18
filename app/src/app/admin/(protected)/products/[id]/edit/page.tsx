@@ -5,7 +5,9 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Editar producto — Admin Cabox' };
 
-interface Props { params: Promise<{ id: string }> }
+interface Props {
+  params: Promise<{ id: string }>;
+}
 
 export default async function EditProductPage({ params }: Props) {
   const { id } = await params;
@@ -13,8 +15,9 @@ export default async function EditProductPage({ params }: Props) {
     prisma.product.findUnique({
       where: { id },
       include: {
-        images:   { orderBy: { position: 'asc' } },
+        images: { orderBy: { position: 'asc' } },
         variants: { orderBy: { sku: 'asc' } },
+        departments: { orderBy: { position: 'asc' } },
       },
     }),
     prisma.category.findMany({ orderBy: { nameEs: 'asc' } }),
@@ -22,25 +25,31 @@ export default async function EditProductPage({ params }: Props) {
 
   if (!product) notFound();
 
+  const extraDepartmentIds = product.departments
+    .filter((dp) => dp.departmentId !== product.primaryDepartmentId)
+    .map((dp) => dp.departmentId)
+    .join(',');
+
   const initial = {
-    nameEs:        product.nameEs,
-    nameEn:        product.nameEn,
+    nameEs: product.nameEs,
+    nameEn: product.nameEn,
     descriptionEs: product.descriptionEs ?? '',
     descriptionEn: product.descriptionEn ?? '',
-    specsEs:       product.specsEs ?? '',
-    specsEn:       product.specsEn ?? '',
-    sku:           product.sku,
-    slug:          product.slug,
-    price:         String(product.price),
-    comparePrice:  product.compareAtPrice ? String(product.compareAtPrice) : '',
-    currency:      product.currency,
-    categoryId:    product.categoryId ?? '',
-    status:        product.status,
-    featured:      product.featured,
-    stock:         String(product.stock ?? 0),
-    promotionalCopy: product.promotionalCopy as any,
-    promotionalMedia: product.promotionalMedia as any,
-    // Map ProductImage[] → newline-separated URL string for form textarea
+    specsEs: product.specsEs ?? '',
+    specsEn: product.specsEn ?? '',
+    sku: product.sku,
+    slug: product.slug,
+    price: String(product.price),
+    comparePrice: product.compareAtPrice ? String(product.compareAtPrice) : '',
+    currency: product.currency,
+    primaryCategoryId: product.primaryCategoryId ?? '',
+    primaryDepartmentId: product.primaryDepartmentId ?? '',
+    extraDepartmentIds,
+    status: product.status,
+    featured: product.featured,
+    stock: String(product.stock ?? 0),
+    promotionalCopy: product.promotionalCopy as unknown,
+    promotionalMedia: product.promotionalMedia as unknown,
     images: product.images.map((img) => img.url).join('\n'),
   };
 
