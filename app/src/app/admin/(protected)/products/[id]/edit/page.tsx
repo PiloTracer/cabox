@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import ProductForm from '@/components/admin/ProductForm';
+import type { PromotionalAd } from '@/components/admin/AdGenerator';
+import type { PromotionalMedia } from '@/components/admin/AdMediaGallery';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
@@ -48,8 +50,12 @@ export default async function EditProductPage({ params }: Props) {
     status: product.status,
     featured: product.featured,
     stock: String(product.stock ?? 0),
-    promotionalCopy: product.promotionalCopy as unknown,
-    promotionalMedia: product.promotionalMedia as unknown,
+    promotionalCopy: Array.isArray(product.promotionalCopy)
+      ? (product.promotionalCopy as PromotionalAd[])
+      : [],
+    promotionalMedia: Array.isArray(product.promotionalMedia)
+      ? (product.promotionalMedia as PromotionalMedia[])
+      : [],
     images: product.images.map((img) => img.url).join('\n'),
   };
 
