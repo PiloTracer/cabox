@@ -15,7 +15,10 @@ const categorySchema = z.object({
 
 export async function GET() {
   const categories = await prisma.category.findMany({
-    include: { children: { select: { id: true, nameEs: true, nameEn: true } }, _count: { select: { products: true } } },
+    include: {
+      children: { select: { id: true, nameEs: true, nameEn: true } },
+      _count: { select: { primaryProducts: true } },
+    },
     where: { parentId: null },
     orderBy: { createdAt: 'asc' },
   });
@@ -33,6 +36,14 @@ export async function POST(req: NextRequest) {
   const existing = await prisma.category.findUnique({ where: { slug: parsed.data.slug } });
   if (existing) return NextResponse.json({ message: 'Slug already exists' }, { status: 409 });
 
+  const general = await prisma.department.findUnique({ where: { slug: 'general' } });
+  if (!general) {
+    return NextResponse.json(
+      { message: 'Departamento General no encontrado. Ejecuta migraciones/seed.' },
+      { status: 500 },
+    );
+  }
+
   const category = await prisma.category.create({
     data: {
       slug: parsed.data.slug,
@@ -40,6 +51,7 @@ export async function POST(req: NextRequest) {
       nameEs: parsed.data.nameEs,
       image: parsed.data.image || null,
       parentId: parsed.data.parentId ?? null,
+      primaryDepartmentId: general.id,
     },
   });
 
