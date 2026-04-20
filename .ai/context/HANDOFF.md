@@ -1,11 +1,33 @@
 # Cabox — Session Handoff
 
-> **Last Updated**: 2026-04-17 (session close)  
-> **Session Date**: April 17, 2026
+> **Last Updated**: 2026-04-20  
+> **Session Date**: April 17, 2026 (departments); April 20, 2026 (prod DB mismatch note)
+
+## Production incident (P2021 / missing columns)
+
+**Symptoms:** `relation "public.Department" does not exist`, `column Product.primaryCategoryId does not exist`.
+
+**Cause:** Production is running **app + Prisma client** built for the **departments schema**, but the **database was never migrated** — there was no `app/prisma/migrations/<timestamp>_departments_catalog/migration.sql` in the image/repo when the stack deployed, so `npx prisma migrate deploy` in `docker-entrypoint.sh` had nothing to apply for this feature.
+
+**Fix (pick one path):**
+
+1. **Recommended — Prisma migrate (same as entrypoint)**  
+   On a machine that can reach the DB with **`DATABASE_URL_DIRECT`** (not PgBouncer transaction pooling if migrate fails):
+   - Create folder `app/prisma/migrations/20260420180000_departments_catalog/` (fix ownership on `app/prisma/migrations/` if needed: `sudo chown -R "$USER" app/prisma/migrations`).
+   - Copy `app/prisma/manual-migrations/20260417180000_departments_catalog.sql` → `.../20260420180000_departments_catalog/migration.sql`.
+   - Commit, rebuild the **app** image, redeploy **once** so the container runs `prisma migrate deploy` **before** Next starts.  
+   Or one-shot: `docker compose ... exec app npx prisma migrate deploy` using env with **direct** Postgres URL.
+
+2. **Emergency — SQL only**  
+   Run the same SQL file with `psql` against production (backup first). Then still add the migration folder to the repo and run **`prisma migrate deploy`** on the next deploy so `_prisma_migrations` stays in sync (the SQL is written to be largely idempotent on re-run).
+
+**After schema matches:** restart `cabox_prd_app` (or full stack). Errors stop when `Department` exists and `Product` has `primaryCategoryId` / `primaryDepartmentId`.
+
+---
 
 ## Current Focus
 
-**Departments catalog** (plan: `.ai/plans/20260417_departments.md`) — implemented in application code; **database migration must be placed under Prisma migrations and applied before production can run the new schema.**
+**Departments catalog** (plan: `.ai/plans/20260417_departments.md`) — application code expects the new schema; **the migration file must live under `app/prisma/migrations/`** and be applied on every environment before or with the new app image.
 
 ---
 
