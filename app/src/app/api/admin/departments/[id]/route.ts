@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/auth-guard';
@@ -82,9 +83,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(data.position !== undefined && { position: data.position }),
       ...(data.heroImageUrl !== undefined && { heroImageUrl: data.heroImageUrl }),
       ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl }),
-      ...(theme !== undefined && { theme }),
+      ...(theme !== undefined && { theme: theme as Prisma.InputJsonValue }),
       ...(data.navOverrideJson !== undefined && {
-        navOverrideJson: data.navOverrideJson,
+        navOverrideJson:
+          data.navOverrideJson === null
+            ? Prisma.DbNull
+            : (data.navOverrideJson as Prisma.InputJsonValue),
       }),
     },
   });
