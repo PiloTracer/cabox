@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test": "vitest",
     "test:e2e": "playwright test",
-    "db:migrate": "prisma migrate dev",
+    "db:apply-schema": "sh -c 'psql \"$DATABASE_URL_DIRECT\" -v ON_ERROR_STOP=1 -f prisma/schema_changes.sql && psql \"$DATABASE_URL_DIRECT\" -v ON_ERROR_STOP=1 -f prisma/schema_population.sql'",
+    "db:migrate": "npm run db:apply-schema",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio"

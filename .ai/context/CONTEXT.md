@@ -64,7 +64,7 @@
 ## Development Status
 - **Current Phase**: Phase 5 — Core Integrations (in progress)
 - **Completed**: Phase 4 — Storefront Professional Enhancements (cart drawer, image zoom, skeletons, SEO schema)
-- **Active feature thread**: **Departments** (mini-storefronts above categories) — code merged in repo; **Prisma migration** must be filed under `app/prisma/migrations/` and applied on each environment (see `.ai/context/HANDOFF.md`).
+- **Active feature thread**: **Departments** — schema apply via **`app/prisma/schema_changes.sql`** + **`schema_population.sql`** (see `.ai/context/HANDOFF.md`).
 - **Implementation Plan**: `.ai/plans/20260321_pwa_ecommerce_plan.md`
 - **Departments Plan**: `.ai/plans/20260417_departments.md`
 - **Recently Added**: Volume-level backup/restore in `bin/start.sh`
@@ -80,11 +80,11 @@
 | **Categories Admin UI** | ⚠️ Partial | API ready, sidebar link exists, page needs verification |
 | **PWA** | ⚠️ Partial | `@ducanh2912/next-pwa` installed, manifest exists, service worker config needed |
 | **Backup/Restore** | ✅ Implemented | Volume-level backup in `bin/start.sh` (B/R menu options) |
-| **Departments (catalog + routing)** | ✅ Code / ⚠️ DB | Store admin + APIs + `[department]` routes; apply migration from `app/prisma/manual-migrations/…` → `prisma/migrations/` |
+| **Departments (catalog + routing)** | ✅ Code / ⚠️ DB | Store + APIs + `[department]` routes; DB must run `schema_changes.sql` + `schema_population.sql` (container entrypoint) |
 | **WhatsApp Plan** | ❌ Empty | `.ai/plans/20260322_whatsapp_plan.md` is 0 bytes |
 
 ## Next Steps
-1. **Apply departments migration** on staging/production (copy SQL into `prisma/migrations/`, `migrate deploy`, then deploy app) — details in `.ai/context/HANDOFF.md`
+1. **Apply departments SQL** on each env (redeploy app so entrypoint runs `schema_changes.sql` + `schema_population.sql`) — `.ai/context/HANDOFF.md`
 2. Complete PWA service worker configuration
 3. Verify admin categories management page
 4. Populate or remove empty WhatsApp plan file

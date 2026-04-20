@@ -1,15 +1,17 @@
 FROM node:20-alpine
 WORKDIR /app
 
+RUN apk add --no-cache postgresql-client
+
 # Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm install --legacy-peer-deps
 
-# Generate Prisma client
+# Prisma client (schema only — no prisma/migrations)
 COPY prisma ./prisma
 RUN npx prisma generate
 
-# Auto-migration entrypoint
+# Auto-schema entrypoint
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 

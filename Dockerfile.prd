@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Production Dockerfile — multi-stage standalone build for Cabox Next.js app
 # Stage 1: deps — install all node_modules
 FROM node:20-alpine AS deps
@@ -6,14 +7,15 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --legacy-peer-deps
 
-# Stage 2: builder — build the Next.js app
+# Stage 2: builder — Prisma generate cached when only app code changes
 FROM node:20-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
+COPY prisma/schema.prisma prisma/schema.prisma
+RUN npx prisma generate
 COPY . .
-# Generate Prisma client and build in one layer
-RUN npx prisma generate && npm run build
+RUN npm run build
 
 # Stage 3: runner — production image (standalone output)
 FROM node:20-alpine AS runner
@@ -23,7 +25,8 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000
 
-RUN addgroup --system --gid 1001 nodejs && \
+RUN apk add --no-cache postgresql-client && \
+    addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
 
 # Copy standalone build artifacts
@@ -32,40 +35,26 @@ COPY --from=builder /app/.next/static      ./.next/static
 COPY --from=builder /app/public            ./public
 COPY --from=builder /app/prisma            ./prisma
 
-# Copy full node_modules for Prisma CLI migration (includes all transitive deps)
-COPY --from=builder /app/node_modules ./node_modules
-
-# Auto-migration entrypoint
+# Schema apply + start (no full node_modules — smaller image, faster deploy)
 COPY <<'EOF' /app/entrypoint.sh
 #!/bin/sh
 set -e
 export NO_COLOR=1
-echo "⏳ Running Prisma migrations..."
 
-# Step 1: Just hard-recover the specific migration that broke production immediately to guarantee unblocking
-node node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --rolled-back "20260325033630" || true
-
-# Step 2: Auto-recover any other failed migrations dynamically using foolproof regex (14 digits)
-STATUS_OUT=$(node node_modules/prisma/build/index.js migrate status --schema=./prisma/schema.prisma 2>&1 || true)
-if echo "$STATUS_OUT" | grep -qi "failed"; then
-  FAILED_MIGRATIONS=$(echo "$STATUS_OUT" | grep -Eo '20[0-9]{12}' | sort | uniq || true)
-  for MIGRATION in $FAILED_MIGRATIONS; do
-    if [ -n "$MIGRATION" ]; then
-      echo "⚠️  Resolving failed migration: $MIGRATION"
-      node node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --rolled-back "$MIGRATION" || true
-    fi
-  done
+if [ -z "$DATABASE_URL_DIRECT" ]; then
+  echo "⚠️  DATABASE_URL_DIRECT not set; skipping SQL schema apply"
+else
+  echo "⏳ prisma/schema_changes.sql..."
+  psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f ./prisma/schema_changes.sql
+  echo "⏳ prisma/schema_population.sql..."
+  psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f ./prisma/schema_population.sql
 fi
-
-# Apply pending migrations
-node node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma || echo "⚠️  Migration had issues, starting app anyway..."
 
 echo "🚀 Starting application..."
 exec su -s /bin/sh nextjs -c "node server.js"
 EOF
 RUN chmod +x /app/entrypoint.sh
 
-# Ensure nextjs user has permission to write to the cache
 RUN mkdir -p /app/.next/cache && chown -R nextjs:nodejs /app/.next
 
 EXPOSE 3000

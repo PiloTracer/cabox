@@ -1,5 +1,5 @@
 -- Run against staging or a restored prod snapshot.
--- Section A: before migration (legacy schema). Section B: after `prisma migrate deploy`.
+-- Section A: before SQL apply (legacy schema). Section B: after schema_changes + schema_population.
 
 \set ON_ERROR_STOP on
 

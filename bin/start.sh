@@ -151,8 +151,11 @@ logs_all() {
 
 migrate() {
     header
-    echo "▶  Running Prisma migrations ..."
-    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec app npx prisma migrate dev
+    echo "▶  Applying prisma/schema_changes.sql + schema_population.sql (idempotent) ..."
+    COMPOSE_PROJECT_NAME=$STORE_NAME $DC -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec app sh -c '
+      psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f ./prisma/schema_changes.sql &&
+      psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f ./prisma/schema_population.sql
+    '
     pause
 }
 
@@ -491,7 +494,7 @@ while true; do
     echo "  6.  View All Logs"
     echo "  7.  Status"
     echo "  ─────────────────────────────────────────────"
-    echo "  8.  Prisma Migrate"
+    echo "  8.  Apply SQL schema (schema_changes + schema_population)"
     echo "  9.  Prisma Seed"
     echo "  10. Prisma Studio"
     echo "  11. App Shell"

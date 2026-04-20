@@ -52,9 +52,9 @@
 - **Prisma 6**: ORM with type-safe client
   - **21 models** (includes **Department**, **DepartmentCategory**, **DepartmentProduct**, **ProductCategory**, **StoreSettings**, **OrderTicket**, etc.)
   - Catalog: products link to **primary** category + department and optional **many-to-many** via junction tables
-  - Migrations: `npx prisma migrate deploy` on container start (`app/docker-entrypoint.sh`); dev: `npx prisma migrate dev` (inside container)
+  - **Schema apply (no `prisma/migrations/`)**: `psql "$DATABASE_URL_DIRECT"` runs `app/prisma/schema_changes.sql` then `schema_population.sql` on **prod** (`Dockerfile.prd` entrypoint) and **dev** (`app/docker-entrypoint.sh`). Idempotent; uses direct Postgres URL (not PgBouncer transaction mode).
   - Studio: `npx prisma studio` on port 5555
-  - **Departments DDL**: hardened SQL in `app/prisma/manual-migrations/20260417180000_departments_catalog.sql` — must live under `app/prisma/migrations/` for deploy to apply it
+  - Local one-shot: `npm run db:apply-schema` (requires `DATABASE_URL_DIRECT` in env)
 
 ### API Layer
 - **Next.js API Routes** (Route Handlers in App Router)
@@ -153,8 +153,8 @@ Each store gets isolated: `COMPOSE_PROJECT_NAME`, Docker network, DB volume, por
 
 ### Database Operations
 ```bash
-# Migrations
-docker compose -f docker-compose.dev.yml exec app npx prisma migrate dev
+# SQL schema (same as container startup)
+docker compose -f docker-compose.dev.yml exec app sh -c 'psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f ./prisma/schema_changes.sql && psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f ./prisma/schema_population.sql'
 
 # Seed
 docker compose -f docker-compose.dev.yml exec app npx prisma db seed

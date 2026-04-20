@@ -5,29 +5,17 @@
 
 ## Production incident (P2021 / missing columns)
 
-**Symptoms:** `relation "public.Department" does not exist`, `column Product.primaryCategoryId does not exist`.
+**Symptoms:** `relation "public.Department" does not exist`, `column Product.primaryCategoryId` missing.
 
-**Cause:** Production is running **app + Prisma client** built for the **departments schema**, but the **database was never migrated** — there was no `app/prisma/migrations/<timestamp>_departments_catalog/migration.sql` in the image/repo when the stack deployed, so `npx prisma migrate deploy` in `docker-entrypoint.sh` had nothing to apply for this feature.
+**Cause:** DB never received the departments DDL while the app expected the new Prisma schema.
 
-**Fix (pick one path):**
-
-1. **Recommended — Prisma migrate (same as entrypoint)**  
-   On a machine that can reach the DB with **`DATABASE_URL_DIRECT`** (not PgBouncer transaction pooling if migrate fails):
-   - Create folder `app/prisma/migrations/20260420180000_departments_catalog/` (fix ownership on `app/prisma/migrations/` if needed: `sudo chown -R "$USER" app/prisma/migrations`).
-   - Copy `app/prisma/manual-migrations/20260417180000_departments_catalog.sql` → `.../20260420180000_departments_catalog/migration.sql`.
-   - Commit, rebuild the **app** image, redeploy **once** so the container runs `prisma migrate deploy` **before** Next starts.  
-   Or one-shot: `docker compose ... exec app npx prisma migrate deploy` using env with **direct** Postgres URL.
-
-2. **Emergency — SQL only**  
-   Run the same SQL file with `psql` against production (backup first). Then still add the migration folder to the repo and run **`prisma migrate deploy`** on the next deploy so `_prisma_migrations` stays in sync (the SQL is written to be largely idempotent on re-run).
-
-**After schema matches:** restart `cabox_prd_app` (or full stack). Errors stop when `Department` exists and `Product` has `primaryCategoryId` / `primaryDepartmentId`.
+**Fix:** Ensure **`DATABASE_URL_DIRECT`** points at Postgres (not PgBouncer transaction pool), then either **redeploy the app image** (entrypoint runs `schema_changes.sql` + `schema_population.sql` via `psql`) or run the same two files manually with `psql`. Both scripts are idempotent.
 
 ---
 
 ## Current Focus
 
-**Departments catalog** (plan: `.ai/plans/20260417_departments.md`) — application code expects the new schema; **the migration file must live under `app/prisma/migrations/`** and be applied on every environment before or with the new app image.
+**Departments catalog** — schema is driven by **`app/prisma/schema_changes.sql`** and **`app/prisma/schema_population.sql`** (no `prisma/migrations/`). Prod: `Dockerfile.prd` entrypoint; dev: `app/docker-entrypoint.sh`.
 
 ---
 
@@ -43,12 +31,11 @@
 - **Admin**: **`/admin/departments`** list + sidebar link; products list **`?filter=unclassified`** (“Solo General”) + **Department** column; categories table fixed **`_count.primaryProducts`**.
 - **Sitemap** (`app/src/app/sitemap.ts`): Department homes, dept product indexes, canonical PDP URLs.
 
-### Migration (SQL — review before prod)
-- **Hardened script**: `app/prisma/manual-migrations/20260417180000_departments_catalog.sql`  
-  Idempotent-style guards, slug-based General department resolution, deduped junction inserts, `ADD COLUMN IF NOT EXISTS` on `OrderItem`.
-- **Preflight checks**: `app/scripts/preflight-departments-migration.sql` (run on a **prod snapshot** before deploy).
-- **Deploy path**: `app/docker-entrypoint.sh` runs **`npx prisma migrate deploy`** on container start — migration only runs if it exists as **`app/prisma/migrations/<timestamp>_departments_catalog/migration.sql`**.
-- **Blocker encountered**: Could not create `app/prisma/migrations/…` in-agent (**permission denied** on that tree). **Action for you**: `sudo chown` or copy the manual SQL into a new migration folder, then `prisma migrate deploy` on staging.
+### Schema SQL (prod + dev)
+- **`app/prisma/schema_changes.sql`** — idempotent DDL (Department table, renames, nullable columns, junction table shells, `OrderItem` columns).
+- **`app/prisma/schema_population.sql`** — idempotent seeds + backfills + `NOT NULL` + FKs.
+- **Preflight**: `app/scripts/preflight-departments-migration.sql` on a DB snapshot when unsure.
+- **Deploy**: `Dockerfile.prd` and `app/docker-entrypoint.sh` run both files with **`psql "$DATABASE_URL_DIRECT"`** before the server starts.
 
 ---
 
@@ -69,7 +56,7 @@
 
 ## Known Issues / Blockers
 
-1. **Prisma migration not in `prisma/migrations/`** — Production/staging will not apply departments DDL until the SQL is copied into a new migration directory and deployed.
+1. **`DATABASE_URL_DIRECT` missing or pointing at PgBouncer (transaction)** — `psql` schema apply can fail or hang; must target Postgres directly.
 2. **Sitemap 500 via Nginx** — `/sitemap.xml` may 500 through `:8080` while OK on `:3000`; check `nginx.conf` proxy for `/sitemap.xml`.
 3. **IDE TS “cannot find module”** — Often false positive when TS runs at repo root; Docker/Turbopack build is source of truth.
 4. **PgBouncer**: Use **`DATABASE_URL_DIRECT`** for migrations and Prisma CLI (`schema.prisma` `directUrl`).
@@ -80,7 +67,7 @@
 
 ## Git State
 
-Run **`git status`** — do not rely on a fixed SHA here; commit when migration + ownership are resolved.
+Run **`git status`** before committing schema SQL or Docker changes.
 
 ---
 
@@ -89,22 +76,20 @@ Run **`git status`** — do not rely on a fixed SHA here; commit when migration 
 | Area | Paths |
 |------|--------|
 | Plan | `.ai/plans/20260417_departments.md` |
-| Migration SQL | `app/prisma/manual-migrations/20260417180000_departments_catalog.sql` |
+| Schema SQL | `app/prisma/schema_changes.sql`, `app/prisma/schema_population.sql` |
 | Preflight | `app/scripts/preflight-departments-migration.sql` |
-| Entrypoint | `app/docker-entrypoint.sh` (`migrate deploy` then seed) |
+| Entrypoints | `Dockerfile.prd` (prod), `app/docker-entrypoint.sh` (dev) — `psql` then app |
 | Schema | `app/prisma/schema.prisma` |
 | Store routing | `app/src/app/[locale]/(store)/[department]/…`, `(store)/layout.tsx`, `(store)/page.tsx`, `products/page.tsx` |
 | Admin | `app/src/app/admin/(protected)/departments/page.tsx`, `products/page.tsx`, `components/admin/AdminSidebar.tsx` |
 
 ---
 
-## Atomic Next Steps (tomorrow)
+## Atomic next steps
 
-1. **Fix ownership** on `app/prisma/migrations/` if needed; **copy** hardened SQL into `app/prisma/migrations/20260417200000_departments_catalog/migration.sql` (or `prisma migrate dev` name after folder exists).
-2. Run **`app/scripts/preflight-departments-migration.sql`** on a DB snapshot; then **`npx prisma migrate deploy`** (or compose exec) on staging.
-3. **`prisma generate`** + **`next build`** in app container; fix any remaining type errors.
-4. Deploy **app + migration together** in one release.
-5. (Optional) Stop masking seed failures in prod entrypoint — evaluate whether **`prisma db seed`** should run every container start (`docker-entrypoint.sh` currently `seed … || true`).
+1. Confirm **`.env.prd`** sets **`DATABASE_URL_DIRECT`** to `postgresql://...@postgres:5432/...` (internal Docker hostname for the DB service).
+2. Rebuild/restart the **prd** app image so the entrypoint runs the two SQL files.
+3. Optional: run **`app/scripts/preflight-departments-migration.sql`** on a snapshot first.
 
 ---
 

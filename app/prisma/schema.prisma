@@ -481,7 +481,7 @@ model StoreSettings {
 }
 
 // ── Full-Text Search ─────────────────────────────────────────
-// Run via raw migration (prisma/migrations/xxx_add_fts_index/migration.sql):
+// Run via prisma/schema_changes.sql (append) or one-off psql:
 // CREATE INDEX product_fts_idx ON "Product" USING GIN (
 //   to_tsvector('english', "nameEn" || ' ' || "descriptionEn") ||
 //   to_tsvector('spanish', "nameEs" || ' ' || "descriptionEs")
