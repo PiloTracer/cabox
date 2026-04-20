@@ -5,7 +5,7 @@ RUN apk add --no-cache postgresql-client
 
 # Install dependencies
 COPY package.json package-lock.json* ./
-RUN npm install --legacy-peer-deps
+RUN npm install --legacy-peer-deps --no-audit --no-fund --loglevel=error
 
 # Prisma client (schema only — no prisma/migrations)
 COPY prisma ./prisma

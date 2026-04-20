@@ -5,7 +5,8 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install --legacy-peer-deps
+# loglevel=error: suppress npm "deprecated" spam from transitive deps (still fails on real errors)
+RUN npm install --legacy-peer-deps --no-audit --no-fund --loglevel=error
 
 # Stage 2: builder — Prisma generate cached when only app code changes
 FROM node:20-alpine AS builder
