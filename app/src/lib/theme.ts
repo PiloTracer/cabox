@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /** Allowed font tokens — departments cannot inject arbitrary font-family (security) */
 const ALLOWED_FONTS = new Set([
   'Playfair Display',

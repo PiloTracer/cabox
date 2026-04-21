@@ -6,8 +6,6 @@ import { useTranslations } from 'next-intl';
 import { ShoppingCart, Search, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCartStore } from '@/stores/cart-store';
-import { formatCRC } from '@/lib/format';
-
 export interface NavDepartment {
   slug: string;
   nameEs: string;
@@ -28,7 +26,10 @@ export default function Navbar({ locale, departments = [] }: NavbarProps) {
   const openCart = useCartStore((s) => s.openCart);
 
   // Prevent hydration mismatch: cart count from localStorage is only available client-side
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional mount signal
+    setMounted(true);
+  }, []);
 
   const base = `/${locale}`;
 

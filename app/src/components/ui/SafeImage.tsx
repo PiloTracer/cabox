@@ -7,7 +7,7 @@ import { useState } from 'react';
  * Drop-in replacement for next/image that gracefully handles broken URLs.
  * On error, hides the image and optionally shows a placeholder.
  */
-export default function SafeImage({ onError, style, ...props }: ImageProps) {
+export default function SafeImage({ onError, style, alt = '', ...props }: ImageProps) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
@@ -35,6 +35,7 @@ export default function SafeImage({ onError, style, ...props }: ImageProps) {
   return (
     <Image
       {...props}
+      alt={alt}
       style={style}
       onError={(e) => {
         setFailed(true);

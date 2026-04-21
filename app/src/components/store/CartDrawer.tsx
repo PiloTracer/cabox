@@ -17,6 +17,8 @@ export function CartDrawer({ locale }: CartDrawerProps) {
   const { isCartOpen, closeCart, items, removeItem, updateQuantity, subtotal } = useCartStore();
 
   useEffect(() => {
+    // Client-only gate: avoid cart / localStorage mismatch on SSR
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional mount signal
     setMounted(true);
   }, []);
 
@@ -122,7 +124,7 @@ export function CartDrawer({ locale }: CartDrawerProps) {
                     </div>
                     {item.attributes && Object.keys(item.attributes).length > 0 && (
                       <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0.25rem 0' }}>
-                        {Object.entries(item.attributes).map(([k, v]) => `${v}`).join(' / ')}
+                        {Object.entries(item.attributes).map(([, v]) => `${v}`).join(' / ')}
                       </p>
                     )}
                     <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

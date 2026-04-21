@@ -21,13 +21,13 @@ export function formatCRC(amount: any): string {
 /**
  * Format a number as US Dollars (USD).
  */
-export function formatUSD(amount: any): string {
+export function formatUSD(amount: number | string | bigint | null | undefined): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(Number(amount));
+  }).format(Number(amount ?? 0));
 }
 
 /**
@@ -36,6 +36,13 @@ export function formatUSD(amount: any): string {
  */
 export function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString('es-CR');
+}
+
+/** Value for `<input type="datetime-local" />` in the user's local timezone */
+export function toDatetimeLocalInputValue(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /**

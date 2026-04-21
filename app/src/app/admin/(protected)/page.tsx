@@ -5,24 +5,14 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ShoppingBag, Package, TrendingUp } from 'lucide-react';
 import { formatCRC, formatDate } from '@/lib/format';
+import {
+  ADMIN_ORDER_STATUS_BADGE,
+  ADMIN_ORDER_STATUS_LABEL,
+  ADMIN_PAYMENT_STATUS_BADGE,
+  ADMIN_PAYMENT_STATUS_LABEL,
+} from '@/lib/admin/order-labels';
 
 export const metadata: Metadata = { title: 'Dashboard — Cabox Admin' };
-
-const ORDER_STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pendiente',
-  CONFIRMED: 'Confirmado',
-  PROCESSING: 'En proceso',
-  SHIPPED: 'Enviado',
-  DELIVERED: 'Entregado',
-  CANCELLED: 'Cancelado',
-};
-
-const PAY_LABEL: Record<string, string> = {
-  PENDING: 'Pendiente',
-  COMPLETED: 'Pagado',
-  FAILED: 'Fallido',
-  REFUNDED: 'Reembolsado',
-};
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
@@ -102,13 +92,17 @@ export default async function AdminDashboard() {
                       </Link>
                     </td>
                     <td>
-                      <span className={`badge badge-${statusBadge(order.status)}`}>
-                        {ORDER_STATUS_LABEL[order.status] ?? order.status}
+                      <span
+                        className={`badge badge-${ADMIN_ORDER_STATUS_BADGE[order.status] ?? 'muted'}`}
+                      >
+                        {ADMIN_ORDER_STATUS_LABEL[order.status] ?? order.status}
                       </span>
                     </td>
                     <td>
-                      <span className={`badge badge-${payBadge(order.paymentStatus)}`}>
-                        {PAY_LABEL[order.paymentStatus] ?? order.paymentStatus}
+                      <span
+                        className={`badge badge-${ADMIN_PAYMENT_STATUS_BADGE[order.paymentStatus] ?? 'muted'}`}
+                      >
+                        {ADMIN_PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}
                       </span>
                     </td>
                     <td className="price">{formatCRC(order.total)}</td>
@@ -124,22 +118,4 @@ export default async function AdminDashboard() {
       )}
     </div>
   );
-}
-
-function statusBadge(s: string) {
-  const map: Record<string, string> = {
-    PENDING: 'warning', CONFIRMED: 'success', PROCESSING: 'new',
-    SHIPPED: 'new', DELIVERED: 'success', CANCELLED: 'error',
-  };
-  return map[s] ?? 'muted';
-}
-
-function payBadge(s: string) {
-  const map: Record<string, string> = {
-    PENDING: 'warning',
-    COMPLETED: 'success',
-    FAILED: 'error',
-    REFUNDED: 'muted',
-  };
-  return map[s] ?? 'muted';
 }

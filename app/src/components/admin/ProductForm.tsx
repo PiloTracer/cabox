@@ -96,6 +96,7 @@ export default function ProductForm({
 
   useEffect(() => {
     if (isEdit || departments.length === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- default department when list loads
     setData((d) => {
       if (d.primaryDepartmentId) return d;
       const gen = departments.find((x) => x.slug === 'general');
@@ -109,9 +110,10 @@ export default function ProductForm({
   // Auto-generate slug from ES name (new products only)
   useEffect(() => {
     if (!isEdit && data.nameEs && !data.slug) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- auto-slug from name for new products
       set('slug', data.nameEs.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
     }
-  }, [data.nameEs]);
+  }, [data.nameEs]); // eslint-disable-line react-hooks/exhaustive-deps -- auto-slug only reacts to nameEs for new products
 
   // ─── Image file handling ─────────────────────────────────────
   const handleImageFile = useCallback((file: File) => {
@@ -148,7 +150,9 @@ export default function ProductForm({
 
   // Keep a ref to handleImageFile so the paste useEffect deps stay stable
   const handleImageFileRef = useRef(handleImageFile);
-  handleImageFileRef.current = handleImageFile;
+  useEffect(() => {
+    handleImageFileRef.current = handleImageFile;
+  });
 
   // ─── Clipboard paste handler (document-level so it works regardless of focus) ──
   useEffect(() => {
@@ -283,7 +287,12 @@ export default function ProductForm({
       setConfidence(json.confidence ?? 'low');
 
       // Merge AI-found images with any existing local (pasted/uploaded) images
-      const aiImages: FoundImage[] = (json.images ?? []).map((img: any) => ({ ...img, isLocal: false }));
+      const aiImages: FoundImage[] = (json.images ?? []).map((img: Partial<FoundImage>) => ({
+        url: img.url ?? '',
+        title: img.title ?? '',
+        thumb: img.thumb ?? '',
+        isLocal: false,
+      }));
       setFoundImages(prev => {
         const locals = prev.filter(i => i.isLocal);
         return [...locals, ...aiImages];
@@ -326,6 +335,7 @@ export default function ProductForm({
   useEffect(() => {
     if (foundImages.length === 0) return;
     const galleryUrls = new Set(foundImages.map(i => i.url));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- align images field with gallery selection
     setData(d => {
       const existing = d.images ? d.images.split('\n').filter(Boolean) : [];
       const cleaned = existing.filter(url => !galleryUrls.has(url) || selectedImgs.has(url));
@@ -429,16 +439,6 @@ export default function ProductForm({
       <input className="input" type={type} value={data[key] as string} placeholder={placeholder}
         onChange={(e) => set(key, e.target.value)}
         style={hasAI ? { borderColor: 'var(--color-primary)' } : undefined}
-      />
-    </div>
-  );
-
-  const textarea = (label: string, key: keyof ProductData, rows = 3) => (
-    <div className="form-group">
-      <label className="form-label">{label}{hasAI && aiBadge}</label>
-      <textarea className="input" rows={rows} value={data[key] as string}
-        onChange={(e) => set(key, e.target.value)}
-        style={{ resize: 'vertical', ...(hasAI ? { borderColor: 'var(--color-primary)' } : {}) }}
       />
     </div>
   );
@@ -1010,7 +1010,7 @@ export default function ProductForm({
             {/* AI Promociones */}
             <AdGenerator 
               promotionalCopy={data.promotionalCopy || null}
-              onChange={(val) => set('promotionalCopy', val as any)}
+              onChange={(val) => setData((d) => ({ ...d, promotionalCopy: val }))}
               productContext={{
                 nameEs: data.nameEs,
                 descriptionEs: data.descriptionEs,
@@ -1022,7 +1022,7 @@ export default function ProductForm({
 
             <AdMediaGallery
               media={data.promotionalMedia || []}
-              onChange={(media) => set('promotionalMedia', media as any)}
+              onChange={(media) => setData((d) => ({ ...d, promotionalMedia: media }))}
             />
 
           </div>

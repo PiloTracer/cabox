@@ -15,6 +15,8 @@ export default function ShareButton({ title, text, locale = 'es' }: ShareButtonP
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Native share capability after mount keeps SSR markup stable
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- depends on navigator after hydration
     setCanNativeShare(
       typeof navigator !== 'undefined' &&
         typeof navigator.share === 'function' &&

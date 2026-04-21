@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
-import { formatCRC } from '@/lib/format';
 import ShippingZoneCreateForm from '@/components/admin/ShippingZoneCreateForm';
+import ShippingZoneCard from '@/components/admin/ShippingZoneCard';
 
 export const metadata: Metadata = { title: 'Envíos — Cabox Admin' };
 
@@ -29,33 +29,19 @@ export default async function AdminShippingPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
         {zones.map((zone) => (
-          <div key={zone.id} className="admin-card">
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', marginBottom: '0.5rem' }}>
-              {zone.nameEs}
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>{zone.nameEn}</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.75rem' }}>
-              {zone.provinces.map((p) => (
-                <span key={p} className="badge badge-muted" style={{ fontSize: '0.75rem' }}>{p}</span>
-              ))}
-            </div>
-            <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Tarifa base</span>
-                <span style={{ fontWeight: 600 }}>{formatCRC(Number(zone.baseRate))}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Por kg</span>
-                <span style={{ fontWeight: 600 }}>{formatCRC(Number(zone.perKgRate))}</span>
-              </div>
-              {zone.freeAbove && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--color-text-muted)' }}>Gratis sobre</span>
-                  <span style={{ fontWeight: 600, color: 'green' }}>{formatCRC(Number(zone.freeAbove))}</span>
-                </div>
-              )}
-            </div>
-          </div>
+          <ShippingZoneCard
+            key={zone.id}
+            allProvinces={CR_PROVINCES}
+            zone={{
+              id: zone.id,
+              nameEs: zone.nameEs,
+              nameEn: zone.nameEn,
+              provinces: zone.provinces,
+              baseRate: Number(zone.baseRate),
+              perKgRate: Number(zone.perKgRate),
+              freeAbove: zone.freeAbove != null ? Number(zone.freeAbove) : null,
+            }}
+          />
         ))}
       </div>
 

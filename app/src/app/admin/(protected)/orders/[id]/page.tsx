@@ -1,19 +1,19 @@
 import { prisma } from '@/lib/prisma';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import OrderStatusForm from '@/components/admin/OrderStatusForm';
-import { formatCRC, formatDate, formatDateTime } from '@/lib/format';
+import { formatCRC, formatDateTime } from '@/lib/format';
+import {
+  ADMIN_ORDER_STATUS_BADGE,
+  ADMIN_ORDER_STATUS_LABEL,
+  ADMIN_PAYMENT_STATUS_BADGE,
+  ADMIN_PAYMENT_STATUS_LABEL,
+} from '@/lib/admin/order-labels';
+import { isPaymentProofPdfUrl } from '@/lib/payment-proof';
 
 export const metadata: Metadata = { title: 'Detalle del Pedido — Cabox Admin' };
-
-const STATUS_BADGE: Record<string, string> = {
-  PENDING: 'warning', CONFIRMED: 'success', PROCESSING: 'new',
-  SHIPPED: 'new', DELIVERED: 'success', CANCELLED: 'error',
-};
-const PAY_BADGE: Record<string, string> = {
-  PENDING: 'warning', COMPLETED: 'success', FAILED: 'error', REFUNDED: 'muted',
-};
 const TIMELINE_STEPS = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
 
 interface Props {
@@ -52,11 +52,11 @@ export default async function AdminOrderDetailPage({ params }: Props) {
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', flex: 1 }}>
           {order.orderNumber}
         </h1>
-        <span className={`badge badge-${STATUS_BADGE[order.status] ?? 'muted'}`} style={{ fontSize: '0.85rem' }}>
-          {order.status}
+        <span className={`badge badge-${ADMIN_ORDER_STATUS_BADGE[order.status] ?? 'muted'}`} style={{ fontSize: '0.85rem' }}>
+          {ADMIN_ORDER_STATUS_LABEL[order.status] ?? order.status}
         </span>
-        <span className={`badge badge-${PAY_BADGE[order.paymentStatus] ?? 'muted'}`} style={{ fontSize: '0.85rem' }}>
-          {order.paymentStatus}
+        <span className={`badge badge-${ADMIN_PAYMENT_STATUS_BADGE[order.paymentStatus] ?? 'muted'}`} style={{ fontSize: '0.85rem' }}>
+          {ADMIN_PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}
         </span>
       </div>
 
@@ -99,7 +99,13 @@ export default async function AdminOrderDetailPage({ params }: Props) {
                 return (
                   <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '0.75rem', background: 'var(--color-bg)', borderRadius: '0.5rem' }}>
                     {img && (
-                      <img src={img} alt={item.nameEs} style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '0.375rem', flexShrink: 0 }} />
+                      <Image
+                        src={img}
+                        alt={item.nameEs}
+                        width={56}
+                        height={56}
+                        style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '0.375rem', flexShrink: 0 }}
+                      />
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.nameEs}</p>
@@ -192,7 +198,9 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Estado</span>
-                <span className={`badge badge-${PAY_BADGE[order.paymentStatus] ?? 'muted'}`}>{order.paymentStatus}</span>
+                <span className={`badge badge-${ADMIN_PAYMENT_STATUS_BADGE[order.paymentStatus] ?? 'muted'}`}>
+                  {ADMIN_PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}
+                </span>
               </div>
               {order.paymentRef && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -235,7 +243,33 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               const urls = ticket.attachments as string[];
               return urls.map((url, i) => (
                 <a key={`${ticket.id}-${i}`} href={url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginRight: '0.5rem', marginBottom: '0.5rem' }}>
-                  <img src={url} alt={`Comprobante ${i + 1}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '0.375rem', border: '1px solid var(--color-border)' }} />
+                  {isPaymentProofPdfUrl(url) ? (
+                    <div
+                      style={{
+                        width: '80px',
+                        height: '80px',
+                        borderRadius: '0.375rem',
+                        border: '1px solid var(--color-border)',
+                        background: '#fef2f2',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.125rem',
+                      }}
+                    >
+                      <span style={{ fontSize: '1.5rem' }} aria-hidden>📄</span>
+                      <span style={{ fontSize: '0.6rem', color: '#dc2626', fontWeight: 600 }}>PDF</span>
+                    </div>
+                  ) : (
+                    <Image
+                      src={url}
+                      alt={`Comprobante ${i + 1}`}
+                      width={80}
+                      height={80}
+                      style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '0.375rem', border: '1px solid var(--color-border)' }}
+                    />
+                  )}
                 </a>
               ));
             })}

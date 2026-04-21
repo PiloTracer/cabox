@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src --max-warnings 0",
     "test": "vitest",
     "test:e2e": "playwright test",
     "db:apply-schema": "sh -c 'psql \"$DATABASE_URL_DIRECT\" -v ON_ERROR_STOP=1 -f prisma/schema_changes.sql && psql \"$DATABASE_URL_DIRECT\" -v ON_ERROR_STOP=1 -f prisma/schema_population.sql'",

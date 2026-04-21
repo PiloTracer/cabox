@@ -48,7 +48,6 @@ export async function ThemeScript() {
   return (
     <style
       id="theme-vars"
-      // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: css }}
     />
   );

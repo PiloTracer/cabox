@@ -2,23 +2,14 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { formatCRC, formatDate } from '@/lib/format';
+import {
+  ADMIN_ORDER_STATUS_BADGE,
+  ADMIN_ORDER_STATUS_LABEL,
+  ADMIN_PAYMENT_STATUS_BADGE,
+  ADMIN_PAYMENT_STATUS_LABEL,
+} from '@/lib/admin/order-labels';
 
 export const metadata: Metadata = { title: 'Pedidos — Cabox Admin' };
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pendiente', CONFIRMED: 'Confirmado', PROCESSING: 'En proceso',
-  SHIPPED: 'Enviado', DELIVERED: 'Entregado', CANCELLED: 'Cancelado',
-};
-const STATUS_BADGE: Record<string, string> = {
-  PENDING: 'warning', CONFIRMED: 'success', PROCESSING: 'new',
-  SHIPPED: 'new', DELIVERED: 'success', CANCELLED: 'error',
-};
-const PAY_BADGE: Record<string, string> = {
-  PENDING: 'warning', COMPLETED: 'success', FAILED: 'error', REFUNDED: 'muted',
-};
-const PAY_LABEL: Record<string, string> = {
-  PENDING: 'Pendiente', COMPLETED: 'Pagado', FAILED: 'Fallido', REFUNDED: 'Reembolsado',
-};
 
 interface Props {
   searchParams: Promise<{ status?: string; page?: string; customerId?: string }>;
@@ -89,7 +80,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
             href={`/admin/orders?status=${s}${customerId ? `&customerId=${customerId}` : ''}`}
             className={`filter-chip ${status === s ? 'active' : ''}`}
           >
-            {STATUS_LABEL[s]}
+            {ADMIN_ORDER_STATUS_LABEL[s]}
           </Link>
         ))}
       </div>
@@ -129,13 +120,13 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                   </div>
                 </td>
                 <td>
-                  <span className={`badge badge-${STATUS_BADGE[order.status] ?? 'muted'}`}>
-                    {STATUS_LABEL[order.status] ?? order.status}
+                  <span className={`badge badge-${ADMIN_ORDER_STATUS_BADGE[order.status] ?? 'muted'}`}>
+                    {ADMIN_ORDER_STATUS_LABEL[order.status] ?? order.status}
                   </span>
                 </td>
                 <td>
-                  <span className={`badge badge-${PAY_BADGE[order.paymentStatus] ?? 'muted'}`}>
-                    {PAY_LABEL[order.paymentStatus] ?? order.paymentStatus}
+                  <span className={`badge badge-${ADMIN_PAYMENT_STATUS_BADGE[order.paymentStatus] ?? 'muted'}`}>
+                    {ADMIN_PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}
                   </span>
                 </td>
                 <td style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{order.paymentMethod}</td>

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export const metadata: Metadata = { title: 'Inventario — Cabox Admin' };
@@ -51,7 +52,13 @@ export default async function AdminInventoryPage() {
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     {item.images[0]?.url && (
-                      <img src={item.images[0].url} alt={item.nameEs} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '0.375rem', flexShrink: 0 }} />
+                      <Image
+                        src={item.images[0].url}
+                        alt={item.nameEs}
+                        width={40}
+                        height={40}
+                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '0.375rem', flexShrink: 0 }}
+                      />
                     )}
                     <Link href={`/admin/products/${item.id}/edit`} style={{ fontWeight: 500 }}>
                       {item.nameEs}

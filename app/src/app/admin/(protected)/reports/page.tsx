@@ -2,17 +2,9 @@ import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { formatCRC, formatDate } from '@/lib/format';
+import { ADMIN_ORDER_STATUS_LABEL } from '@/lib/admin/order-labels';
 
 export const metadata: Metadata = { title: 'Reportes — Cabox Admin' };
-
-const ORDER_STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pendiente',
-  CONFIRMED: 'Confirmado',
-  PROCESSING: 'En proceso',
-  SHIPPED: 'Enviado',
-  DELIVERED: 'Entregado',
-  CANCELLED: 'Cancelado',
-};
 
 export default async function AdminReportsPage() {
   const now = new Date();
@@ -150,7 +142,7 @@ export default async function AdminReportsPage() {
                   <td>{o.customer.name}</td>
                   <td className="price">{formatCRC(o.total)}</td>
                   <td>
-                    <span className="badge badge-muted">{ORDER_STATUS_LABEL[o.status] ?? o.status}</span>
+                    <span className="badge badge-muted">{ADMIN_ORDER_STATUS_LABEL[o.status] ?? o.status}</span>
                   </td>
                   <td style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{formatDate(o.createdAt)}</td>
                 </tr>

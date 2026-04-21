@@ -332,7 +332,7 @@ const PAGES: Record<string, PageContent> = {
       <>
         <p className="prose-intro">Last updated: March 2026</p>
         <section className="prose-section">
-          <p>At <strong>Cabox</strong> we respect and protect the privacy of everyone who visits or shops at our store. This policy describes how we collect, use, and protect your personal information, in compliance with Costa Rica's <strong>Law for the Protection of Individuals regarding the Processing of their Personal Data (Law 8968)</strong>.</p>
+          <p>At <strong>Cabox</strong> we respect and protect the privacy of everyone who visits or shops at our store. This policy describes how we collect, use, and protect your personal information, in compliance with Costa Rica&apos;s <strong>Law for the Protection of Individuals regarding the Processing of their Personal Data (Law 8968)</strong>.</p>
 
           <h2>1. Information we collect</h2>
           <h3>Information you provide to us</h3>

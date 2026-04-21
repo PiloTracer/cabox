@@ -60,9 +60,9 @@ export function AdGenerator({ promotionalCopy, onChange, productContext }: AdGen
 
       onChange([newAd, ...ads]);
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Error');
     } finally {
       setLoading(false);
     }

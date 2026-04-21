@@ -10,7 +10,7 @@ const adjustSchema = z.object({
   note: z.string().optional(),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
 

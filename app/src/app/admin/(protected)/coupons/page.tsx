@@ -1,8 +1,29 @@
+import type { Coupon } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import { formatCRC, formatDate } from '@/lib/format';
 import { CreateCouponBtn } from '@/components/admin/CreateCouponBtn';
 import CouponActiveToggle from '@/components/admin/CouponActiveToggle';
+import EditCouponBtn from '@/components/admin/EditCouponBtn';
+import type { CouponFormInitial } from '@/components/admin/coupon-types';
+
+function toCouponFormInitial(c: Coupon): CouponFormInitial {
+  return {
+    id: c.id,
+    code: c.code,
+    descriptionEs: c.descriptionEs,
+    descriptionEn: c.descriptionEn,
+    type: c.type,
+    discountValue: Number(c.discountValue),
+    minOrderAmount: c.minOrderAmount != null ? Number(c.minOrderAmount) : null,
+    maxDiscount: c.maxDiscount != null ? Number(c.maxDiscount) : null,
+    maxUses: c.maxUses,
+    maxUsesPerCustomer: c.maxUsesPerCustomer,
+    startsAt: c.startsAt.toISOString(),
+    expiresAt: c.expiresAt.toISOString(),
+    isActive: c.isActive,
+  };
+}
 
 export const metadata: Metadata = { title: 'Cupones — Cabox Admin' };
 
@@ -71,7 +92,10 @@ export default async function AdminCouponsPage() {
                     </span>
                   </td>
                   <td>
-                    <CouponActiveToggle id={c.id} isActive={c.isActive} />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center' }}>
+                      <EditCouponBtn initial={toCouponFormInitial(c)} />
+                      <CouponActiveToggle id={c.id} isActive={c.isActive} />
+                    </div>
                   </td>
                 </tr>
               );

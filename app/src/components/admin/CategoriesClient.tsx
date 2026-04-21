@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -133,7 +134,13 @@ export default function CategoriesClient({ categories }: Props) {
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     {cat.image && (
-                      <img src={cat.image} alt={cat.nameEs} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '0.375rem', flexShrink: 0 }} />
+                      <Image
+                        src={cat.image}
+                        alt={cat.nameEs}
+                        width={40}
+                        height={40}
+                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '0.375rem', flexShrink: 0 }}
+                      />
                     )}
                     <div>
                       <p style={{ fontWeight: 600 }}>{cat.nameEs}</p>

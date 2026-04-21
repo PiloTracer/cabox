@@ -1,8 +1,33 @@
+import type { Promotion } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import { formatCRC, formatDate } from '@/lib/format';
 import { CreatePromotionBtn } from '@/components/admin/CreatePromotionBtn';
 import PromotionActiveToggle from '@/components/admin/PromotionActiveToggle';
+import EditPromotionBtn from '@/components/admin/EditPromotionBtn';
+import type { PromotionFormInitial } from '@/components/admin/promotion-types';
+
+function toPromotionFormInitial(p: Promotion): PromotionFormInitial {
+  return {
+    id: p.id,
+    nameEs: p.nameEs,
+    nameEn: p.nameEn,
+    slug: p.slug,
+    type: p.type,
+    discountValue: Number(p.discountValue),
+    minOrderAmount: p.minOrderAmount != null ? Number(p.minOrderAmount) : null,
+    maxDiscount: p.maxDiscount != null ? Number(p.maxDiscount) : null,
+    applicableTo: p.applicableTo,
+    categoryIds: [...p.categoryIds],
+    productIds: [...p.productIds],
+    startsAt: p.startsAt.toISOString(),
+    endsAt: p.endsAt.toISOString(),
+    isActive: p.isActive,
+    priority: p.priority,
+    stackable: p.stackable,
+    bannerImageUrl: p.bannerImageUrl,
+  };
+}
 
 export const metadata: Metadata = { title: 'Promociones — Cabox Admin' };
 
@@ -67,7 +92,10 @@ export default async function AdminPromotionsPage() {
                     </span>
                   </td>
                   <td>
-                    <PromotionActiveToggle id={p.id} isActive={p.isActive} />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center' }}>
+                      <EditPromotionBtn initial={toPromotionFormInitial(p)} />
+                      <PromotionActiveToggle id={p.id} isActive={p.isActive} />
+                    </div>
                   </td>
                 </tr>
               );

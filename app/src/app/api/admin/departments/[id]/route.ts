@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/auth-guard';
-import { isValidDepartmentSlug, RESERVED_STORE_SEGMENTS } from '@/lib/departments';
+import { isValidDepartmentSlug } from '@/lib/departments';
 import { sanitizeThemeJson } from '@/lib/theme';
 
 const patchSchema = z.object({

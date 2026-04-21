@@ -7,9 +7,14 @@
  *
  * Both methods have a hard 5-second timeout to prevent the API route from hanging.
  *
- * NOTE: googlethis is loaded via require() at runtime to bypass Turbopack bundling.
- * Turbopack cannot statically analyze/bundle this CJS scraping library.
+ * NOTE: googlethis is loaded via dynamic import at runtime when CSE is unavailable.
  */
+
+interface GoogleCseItem {
+  link?: string;
+  title?: string;
+  image?: { thumbnailLink?: string };
+}
 
 export interface ImageSearchResult {
   url:   string;
@@ -67,10 +72,10 @@ export async function searchProductImages(
 
       if (result && !result.error && result.items?.length) {
         console.log(`[ImageSearch] Google CSE returned ${result.items.length} images`);
-        return result.items.map((item: any) => ({
-          url:   item.link,
-          title: item.title,
-          thumb: item.image?.thumbnailLink ?? item.link,
+        return result.items.map((item: GoogleCseItem) => ({
+          url:   item.link ?? '',
+          title: item.title ?? '',
+          thumb: item.image?.thumbnailLink ?? item.link ?? '',
         }));
       }
 
@@ -83,19 +88,18 @@ export async function searchProductImages(
   }
 
   // ── 2. googlethis scraper fallback ───────────────────────────
-  // Use require() at runtime to bypass Turbopack static analysis.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   try {
     console.log(`[ImageSearch] Using googlethis scraper for: "${query}"`);
-    const googlethis = require('googlethis');
+    const { image } = await import('googlethis');
+    // `page` is supported at runtime (lib/core/main.js) but missing from published typings
     const images = await withTimeout(
-      googlethis.image(query, { page: 0, safe: false, additional_params: { hl: 'es' } }),
+      image(query, { page: 0, safe: false, additional_params: { hl: 'es' } } as Parameters<typeof image>[1] & { page?: number }),
       8000,
       'googlethis scraper'
     );
 
     if (Array.isArray(images) && images.length > 0) {
-      const results = images.slice(0, count).map((img: any) => ({
+      const results = images.slice(0, count).map((img) => ({
         url:   img.url   || '',
         title: img.origin?.title || query,
         thumb: img.preview?.url  || img.url || '',

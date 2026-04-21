@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { isPaymentProofPdfUrl } from '@/lib/payment-proof';
 
 const MAX_PHOTOS = 2;
 const PROOF_METHODS = ['SINPE', 'TRANSFER', 'BANK_TRANSFER'];
-
-// helper to detect PDFs
-const isPdf = (url: string) => url.toLowerCase().endsWith('.pdf');
 
 interface Props {
   orderNumber: string;
@@ -21,9 +19,6 @@ export default function PaymentProofUploader({ orderNumber, paymentMethod, initi
   const [submitted, setSubmitted]   = useState(initialProofs.length > 0);
   const [error, setError]           = useState('');
   const [dragOver, setDragOver]     = useState(false);
-
-  // Only show for manual payment methods
-  if (!PROOF_METHODS.includes(paymentMethod)) return null;
 
   const uploadFile = useCallback(async (file: File) => {
     if (proofs.length >= MAX_PHOTOS) {
@@ -79,6 +74,8 @@ export default function PaymentProofUploader({ orderNumber, paymentMethod, initi
     }
   };
 
+  if (!PROOF_METHODS.includes(paymentMethod)) return null;
+
   const canAddMore = proofs.length < MAX_PHOTOS && !submitted;
 
   return (
@@ -109,8 +106,7 @@ export default function PaymentProofUploader({ orderNumber, paymentMethod, initi
         <div style={{ display: 'flex', gap: '0.625rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
           {proofs.map((url, i) => (
             <div key={url} style={{ position: 'relative', width: 96, height: 96 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {isPdf(url) ? (
+              {isPaymentProofPdfUrl(url) ? (
                 <div style={{
                   width: 96, height: 96, borderRadius: 8,
                   border: '1.5px solid var(--color-border)',
@@ -121,6 +117,7 @@ export default function PaymentProofUploader({ orderNumber, paymentMethod, initi
                   <span style={{ fontSize: '0.65rem', color: '#dc2626', fontWeight: 600 }}>PDF</span>
                 </div>
               ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- user-uploaded URLs
                 <img
                   src={url}
                   alt={`Comprobante ${i + 1}`}
