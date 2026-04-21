@@ -4,6 +4,7 @@ import { getLocale } from 'next-intl/server';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import PaymentProofUploader from '@/components/store/PaymentProofUploader';
+import OrderPaymentCopyActions from '@/components/store/OrderPaymentCopyActions';
 
 export const metadata: Metadata = { title: 'Estado de pedido — Cabox' };
 
@@ -17,8 +18,12 @@ const PAY_ES: Record<string, string> = {
   PENDING: 'Pendiente', COMPLETED: 'Pagado', FAILED: 'Fallido', REFUNDED: 'Reembolsado',
 };
 const METHOD_ES: Record<string, string> = {
-  SINPE: 'SINPE Móvil', STRIPE: 'Tarjeta', PAYPAL: 'PayPal',
-  BANK_TRANSFER: 'Transferencia bancaria', CASH: 'Efectivo',
+  SINPE: 'SINPE Móvil',
+  STRIPE: 'Tarjeta',
+  CREDIT_CARD: 'Tarjeta',
+  PAYPAL: 'PayPal',
+  BANK_TRANSFER: 'Transferencia bancaria',
+  CASH: 'Efectivo',
 };
 
 function StepDot({ done, active }: { done: boolean; active: boolean }) {
@@ -38,16 +43,31 @@ export default async function OrderStatusPage({ params }: Props) {
   const { orderNumber } = await params;
   const locale = await getLocale();
 
-  const order = await prisma.order.findUnique({
-    where: { orderNumber },
-    include: {
-      items: true,
-      customer: true,
-      tickets: { where: { type: 'PAYMENT_PROOF' }, orderBy: { createdAt: 'desc' }, take: 1 },
-    },
-  });
+  const [order, storeSettings] = await Promise.all([
+    prisma.order.findUnique({
+      where: { orderNumber },
+      include: {
+        items: true,
+        customer: true,
+        tickets: { where: { type: 'PAYMENT_PROOF' }, orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    }),
+    prisma.storeSettings.findUnique({
+      where: { key: 'default' },
+      select: { paymentMethods: true, supportPhone: true },
+    }),
+  ]);
 
   if (!order) notFound();
+
+  type PM = Record<string, { phone?: string; iban?: string; bankName?: string; accountName?: string }>;
+  const pm = (storeSettings?.paymentMethods as PM | null) ?? {};
+  const sinpePhone = pm.SINPE?.phone?.trim() || null;
+  const transferCfg = pm.TRANSFER ?? pm.BANK_TRANSFER;
+  const iban = transferCfg?.iban?.trim() || null;
+  const bankName = transferCfg?.bankName?.trim() || null;
+  const supportPhone = storeSettings?.supportPhone?.trim() || null;
+  const amountDigits = String(Math.round(Number(order.total)));
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CR', { style: 'currency', currency: order.currency, maximumFractionDigits: 0 }).format(n);
@@ -128,12 +148,50 @@ export default async function OrderStatusPage({ params }: Props) {
           {/* SINPE / TRANSFER instructions + proof uploader */}
           {(order.paymentMethod === 'SINPE' || order.paymentMethod === 'BANK_TRANSFER') && order.paymentStatus !== 'COMPLETED' && (
             <>
-              <div className="payment-instructions" style={{ marginTop: '1rem' }}>
-                <strong>📱 {order.paymentMethod === 'SINPE' ? 'Instrucciones SINPE Móvil' : 'Instrucciones de transferencia'}</strong>
-                <p style={{ marginTop: '0.5rem' }}>
-                  Envía <strong>{fmt(Number(order.total))}</strong> al número de contacto de la tienda.
-                  Incluye el número de pedido <strong>{order.orderNumber}</strong> como referencia.
-                </p>
+              <div
+                className="card card-body"
+                style={{
+                  marginTop: '1rem',
+                  background: 'rgba(139, 94, 60, 0.06)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                <strong style={{ fontSize: '0.95rem' }}>Siguiente paso: completa tu pago</strong>
+                <ol style={{ margin: '0.75rem 0 0', paddingLeft: '1.25rem', fontSize: '0.875rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                  <li>
+                    Realiza el pago de <strong style={{ color: 'var(--color-heading)' }}>{fmt(Number(order.total))}</strong>
+                    {order.paymentMethod === 'SINPE' && sinpePhone && (
+                      <> al número SINPE <strong>{sinpePhone}</strong></>
+                    )}
+                    {order.paymentMethod === 'BANK_TRANSFER' && (
+                      <>
+                        {bankName && <> a <strong>{bankName}</strong></>}
+                        {iban && (
+                          <>
+                            {' '}
+                            (IBAN: <strong style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{iban}</strong>)
+                          </>
+                        )}
+                      </>
+                    )}
+                    .
+                  </li>
+                  <li>
+                    Usa el número de pedido <strong>{order.orderNumber}</strong> como referencia o detalle del pago.
+                  </li>
+                  <li>Adjunta el comprobante abajo (foto o PDF).</li>
+                </ol>
+                {supportPhone && (
+                  <p style={{ fontSize: '0.8rem', marginTop: '0.75rem', color: 'var(--color-text-muted)' }}>
+                    ¿Dudas? WhatsApp / teléfono de la tienda: <strong>{supportPhone}</strong>
+                  </p>
+                )}
+                <OrderPaymentCopyActions
+                  orderNumber={order.orderNumber}
+                  amountDigits={amountDigits}
+                  sinpePhone={order.paymentMethod === 'SINPE' ? sinpePhone : null}
+                  iban={order.paymentMethod === 'BANK_TRANSFER' ? iban : null}
+                />
               </div>
               <PaymentProofUploader
                 orderNumber={order.orderNumber}

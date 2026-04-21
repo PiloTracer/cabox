@@ -45,7 +45,8 @@ export default function CategoriesClient({ categories }: Props) {
     });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, nameEs: string) => {
+    if (!confirm(`¿Eliminar la categoría "${nameEs}"? Esta acción no se puede deshacer.`)) return;
     setDeleteError((prev) => ({ ...prev, [id]: '' }));
     startTransition(async () => {
       const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
@@ -154,7 +155,7 @@ export default function CategoriesClient({ categories }: Props) {
                 <td>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <button
-                      onClick={() => handleDelete(cat.id)}
+                      onClick={() => handleDelete(cat.id, cat.nameEs)}
                       disabled={isPending || cat._count.primaryProducts > 0 || cat.children.length > 0}
                       className="btn btn-sm"
                       style={{ color: 'var(--color-accent)', border: '1px solid var(--color-accent)', background: 'transparent', opacity: (cat._count.primaryProducts > 0 || cat.children.length > 0) ? 0.4 : 1 }}

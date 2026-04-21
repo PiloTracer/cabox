@@ -34,13 +34,18 @@ export async function GET() {
         };
         break;
       case 'TRANSFER':
-        methods[key] = {
+      case 'BANK_TRANSFER': {
+        /** Admin UI stores `TRANSFER`; checkout & Prisma use `BANK_TRANSFER`. */
+        const bank = {
           enabled: true,
           bankName: cfg.bankName ?? '',
           iban: cfg.iban ?? '',
           accountName: cfg.accountName ?? '',
         };
+        methods.BANK_TRANSFER = bank;
+        methods.TRANSFER = bank;
         break;
+      }
       default:
         // CASH, STRIPE, PAYPAL — just the enabled flag
         methods[key] = { enabled: true };

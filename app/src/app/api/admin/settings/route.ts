@@ -1,30 +1,35 @@
 import { NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth-guard';
+import { normalizePaymentMethodsJson } from '@/lib/payment-methods-settings';
 
 const SETTINGS_KEY = 'default';
 
-function defaultPaymentMethods() {
-  return {
-    SINPE:    { enabled: true,  phone: '', accountName: '' },
+function defaultPaymentMethods(): Prisma.InputJsonValue {
+  return normalizePaymentMethodsJson({
+    SINPE: { enabled: true, phone: '', accountName: '' },
     TRANSFER: { enabled: false, bankName: '', iban: '', accountName: '' },
-    CASH:     { enabled: true },
-    STRIPE:   { enabled: false },
-    PAYPAL:   { enabled: false },
-  };
+    CASH: { enabled: true },
+    STRIPE: { enabled: false },
+    PAYPAL: { enabled: false },
+  }) as Prisma.InputJsonValue;
 }
 
 export async function GET() {
   const authError = await requireAdmin();
   if (authError) return authError;
 
-  const settings = await prisma.storeSettings.upsert({
-    where:  { key: SETTINGS_KEY },
+  const raw = await prisma.storeSettings.upsert({
+    where: { key: SETTINGS_KEY },
     create: { key: SETTINGS_KEY, paymentMethods: defaultPaymentMethods() },
     update: {},
   });
 
-  return NextResponse.json(settings);
+  return NextResponse.json({
+    ...raw,
+    paymentMethods: normalizePaymentMethodsJson(raw.paymentMethods),
+  });
 }
 
 export async function PUT(req: Request) {
@@ -34,9 +39,12 @@ export async function PUT(req: Request) {
   const body = await req.json();
 
   const {
-    storeName, storeTagline, supportPhone, paymentMethods,
+    storeName, storeTagline, supportPhone, paymentMethods: pmRaw,
     logoUrl, heroImageUrl, footerText, themeColor,
   } = body;
+
+  const paymentMethods: Prisma.InputJsonValue | undefined =
+    pmRaw !== undefined ? (normalizePaymentMethodsJson(pmRaw) as Prisma.InputJsonValue) : undefined;
 
   // Validate hex color if provided
   const validColor = (c: string) => /^#[0-9a-fA-F]{6}$/.test(c);
@@ -48,7 +56,9 @@ export async function PUT(req: Request) {
       storeName:     storeName     ?? 'Cabox',
       storeTagline:  storeTagline  ?? 'Bien elegido · Costa Rica',
       supportPhone:  supportPhone  ?? '',
-      paymentMethods: paymentMethods ?? defaultPaymentMethods(),
+      paymentMethods: normalizePaymentMethodsJson(
+        paymentMethods ?? defaultPaymentMethods(),
+      ) as Prisma.InputJsonValue,
       logoUrl:       logoUrl        ?? '/logo.png',
       heroImageUrl:  heroImageUrl   ?? '',
       footerText:    footerText     ?? 'Bien elegido con amor · Costa Rica',
@@ -66,5 +76,8 @@ export async function PUT(req: Request) {
     },
   });
 
-  return NextResponse.json(settings);
+  return NextResponse.json({
+    ...settings,
+    paymentMethods: normalizePaymentMethodsJson(settings.paymentMethods),
+  });
 }
