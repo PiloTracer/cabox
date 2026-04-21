@@ -1,6 +1,7 @@
 {
   "home": {
-    "welcome": "Cabox — Moda Curada",
+    "brandTitle": "Cabox — Bien elegido",
+    "welcome": "Cabox — Bien elegido",
     "tagline": "Estilo premium para el día a día.",
     "shopNow": "Ver Colección"
   },
@@ -79,6 +80,7 @@
     }
   },
   "footer": {
+    "brandLine": "Bien elegido con amor · Costa Rica",
     "copyright": "© {year} Cabox. Todos los derechos reservados.",
     "contact": "Contacto"
   },

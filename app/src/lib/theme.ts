@@ -55,6 +55,12 @@ export function sanitizeThemeJson(raw: unknown): SanitizedTheme {
     }
   }
 
+  const pad = obj.pageHeroPadding;
+  if (typeof pad === 'string') {
+    const s = pad.trim();
+    if (/^\d+(\.\d+)?(rem|px)$/.test(s)) out.pageHeroPadding = s;
+  }
+
   return out;
 }
 
@@ -77,6 +83,7 @@ export function themeToCssVariables(theme: SanitizedTheme): Record<string, strin
     error: '--color-error',
     displayFont: '--font-display',
     bodyFont: '--font-body',
+    pageHeroPadding: '--page-hero-padding-y',
   };
   const vars: Record<string, string> = {};
   for (const [k, cssVar] of Object.entries(map)) {

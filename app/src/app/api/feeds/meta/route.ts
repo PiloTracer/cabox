@@ -39,9 +39,9 @@ export async function GET() {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
   <channel>
-    <title>Cabox — Curated Fashion</title>
+    <title>Cabox — Bien elegido</title>
     <link>${storeUrl}</link>
-    <description>Tienda de moda curada de Costa Rica</description>
+    <description>Tienda Cabox — Bien elegido · Costa Rica</description>
 ${items}
   </channel>
 </rss>`;

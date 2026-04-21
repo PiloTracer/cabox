@@ -3,6 +3,8 @@ import ProductCard from '@/components/store/ProductCard';
 import { getLocale } from 'next-intl/server';
 import type { Metadata } from 'next';
 import FilterBar from '@/components/store/FilterBar';
+import { PageHero } from '@/components/store/PageHero';
+import { StoreMain } from '@/components/store/StoreSection';
 import { notFound } from 'next/navigation';
 import { productDetailPath } from '@/lib/product-urls';
 import { getDepartmentBySlug } from '@/lib/departments';
@@ -75,62 +77,64 @@ export default async function DepartmentProductsPage({ params, searchParams }: P
       ? dept.nameEs
       : dept.nameEn;
 
+  const countLabel =
+    locale === 'es'
+      ? `${products.length} ${products.length === 1 ? 'producto' : 'productos'} disponibles`
+      : `${products.length} ${products.length === 1 ? 'product' : 'products'} available`;
+
   return (
     <>
-      <div className="page-hero">
+      <PageHero title={title} subtitle={countLabel} />
+
+      <StoreMain>
         <div className="container">
-          <h1>{title}</h1>
-          <p>
-            {products.length} {products.length === 1 ? 'producto' : 'productos'} disponibles
-          </p>
+          <FilterBar categories={categories} activeCat={cat} locale={locale} />
+
+          {products.length === 0 ? (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '4rem 0',
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              <p style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</p>
+              <h2>{locale === 'es' ? 'Sin resultados' : 'No results'}</h2>
+              <p>
+                {locale === 'es'
+                  ? 'No encontramos productos para tu búsqueda.'
+                  : 'We could not find products for your search.'}
+              </p>
+            </div>
+          ) : (
+            <div className="products-grid animate-fade-in">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={{
+                    ...product,
+                    comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
+                    price: Number(product.price),
+                    images: product.images.map((img) => img.url),
+                    category: product.primaryCategory
+                      ? {
+                          slug: product.primaryCategory.slug,
+                          nameEs: product.primaryCategory.nameEs,
+                        }
+                      : null,
+                  }}
+                  locale={locale}
+                  detailHref={productDetailPath(
+                    locale,
+                    product.primaryDepartment.slug,
+                    product.slug,
+                  )}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="container">
-        <FilterBar categories={categories} activeCat={cat} locale={locale} />
-
-        {products.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '4rem 0',
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            <p style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</p>
-            <h2>Sin resultados</h2>
-            <p>No encontramos productos para tu búsqueda.</p>
-          </div>
-        ) : (
-          <div className="products-grid animate-fade-in">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={{
-                  ...product,
-                  comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
-                  price: Number(product.price),
-                  images: product.images.map((img) => img.url),
-                  category: product.primaryCategory
-                    ? {
-                        slug: product.primaryCategory.slug,
-                        nameEs: product.primaryCategory.nameEs,
-                      }
-                    : null,
-                }}
-                locale={locale}
-                detailHref={productDetailPath(
-                  locale,
-                  product.primaryDepartment.slug,
-                  product.slug,
-                )}
-              />
-            ))}
-          </div>
-        )}
-
-        <div style={{ paddingBottom: '3rem' }} />
-      </div>
+      </StoreMain>
     </>
   );
 }

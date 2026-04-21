@@ -15,8 +15,8 @@ interface GeneralSettings {
 
 const DEFAULTS: GeneralSettings = {
   storeName:    'Cabox',
-  storeTagline: 'Moda Curada de Costa Rica',
-  footerText:   'Moda curada con amor · Costa Rica',
+  storeTagline: 'Bien elegido · Costa Rica',
+  footerText:   'Bien elegido con amor · Costa Rica',
   supportPhone: '',
   logoUrl:      '/logo.png',
   heroImageUrl: '',
@@ -148,11 +148,11 @@ export default function GeneralSettingsForm() {
           </div>
           <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
             <label className="form-label">Eslogan / Tagline</label>
-            <input className="input" value={form.storeTagline} onChange={set('storeTagline')} placeholder="Moda Curada de Costa Rica" />
+            <input className="input" value={form.storeTagline} onChange={set('storeTagline')} placeholder="Bien elegido · Costa Rica" />
           </div>
           <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
             <label className="form-label">Texto del pie de página (footer)</label>
-            <input className="input" value={form.footerText} onChange={set('footerText')} placeholder="Moda curada con amor · Costa Rica" />
+            <input className="input" value={form.footerText} onChange={set('footerText')} placeholder="Bien elegido con amor · Costa Rica" />
             <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
               Aparece en la parte inferior del sitio.
             </span>
@@ -311,7 +311,7 @@ export default function GeneralSettingsForm() {
                     {form.storeName || 'Cabox'}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.88)', textShadow: '0 1px 4px rgba(0,0,0,0.5)', marginBottom: '0.75rem' }}>
-                    {form.storeTagline || 'Moda Curada de Costa Rica'}
+                    {form.storeTagline || 'Bien elegido · Costa Rica'}
                   </div>
                   <div style={{ background: form.themeColor, color: '#fff', padding: '6px 20px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
                     Ver colección
@@ -443,7 +443,7 @@ export default function GeneralSettingsForm() {
               <div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Tipografía</div>
                 <div style={{ fontFamily: 'Georgia, serif', fontSize: '1.05rem', fontWeight: 700, color: form.themeColor, marginBottom: '0.2rem' }}>
-                  Moda curada de Costa Rica
+                  Bien elegido · Costa Rica
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#5a4a3a', lineHeight: 1.5 }}>
                   Piezas únicas con carácter. Diseñadas para durar.

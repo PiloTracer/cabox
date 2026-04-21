@@ -8,11 +8,12 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: { default: 'Cabox — Moda Curada de Costa Rica', template: '%s | Cabox' },
-  description: 'Descubre moda curada con estilo premium para el día a día.',
-  keywords: ['fashion', 'clothing', 'curated', 'cabox', 'moda', 'ropa', 'costa rica'],
+  title: { default: 'Cabox — Bien elegido · Costa Rica', template: '%s | Cabox' },
+  description:
+    'Descubre piezas bien elegidas con estilo premium para el día a día.',
+  keywords: ['fashion', 'clothing', 'cabox', 'moda', 'ropa', 'costa rica', 'bien elegido'],
   manifest: '/manifest.json',
-  openGraph: { type: 'website', siteName: 'Cabox', title: 'Cabox — Moda Curada' },
+  openGraph: { type: 'website', siteName: 'Cabox', title: 'Cabox — Bien elegido' },
 };
 
 export const viewport: Viewport = {
@@ -23,9 +24,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html suppressHydrationWarning>
+    <html suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         {/* Dynamic brand color from StoreSettings — overrides CSS defaults */}
         <ThemeScript />
       </head>

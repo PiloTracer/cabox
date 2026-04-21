@@ -10,7 +10,7 @@ export default function Footer({ locale }: { locale: string }) {
       <div className="container footer-inner">
         <div className="footer-brand">
           <span className="footer-logo">Cabox</span>
-          <p className="footer-tagline">Moda curada con amor · Costa Rica</p>
+          <p className="footer-tagline">{t('brandLine')}</p>
         </div>
 
         <div className="footer-links-group">

@@ -486,3 +486,7 @@ audit_results.txt
 **/tmp/
 **/credentials/
 backup/
+
+# Playwright (app workspace)
+app/test-results/
+app/playwright-report/

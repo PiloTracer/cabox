@@ -13,6 +13,8 @@ export const RESERVED_STORE_SEGMENTS = new Set([
   '_next',
   'en',
   'es',
+  /** Avoid catching external tools (e.g. Evolution API) under /[locale]/[department] */
+  'evolution',
 ]);
 
 export function isValidDepartmentSlug(slug: string): boolean {
@@ -29,6 +31,7 @@ export async function getActiveDepartments(): Promise<Department[]> {
 }
 
 export async function getDepartmentBySlug(slug: string): Promise<Department | null> {
+  if (!isValidDepartmentSlug(slug)) return null;
   return prisma.department.findFirst({
     where: { slug, isActive: true },
   });

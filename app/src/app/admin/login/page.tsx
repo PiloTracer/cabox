@@ -43,7 +43,7 @@ export default function AdminLoginPage() {
         <div className="login-logo-wrap">
           <Image
             src="/logo.jpeg"
-            alt="Cabox — Curated Fashion"
+            alt="Cabox — Bien elegido"
             width={96}
             height={96}
             className="login-logo-img"
@@ -105,7 +105,7 @@ export default function AdminLoginPage() {
         </form>
 
         <p className="login-footer-text">
-          Cabox — Curated Fashion &copy; {new Date().getFullYear()}
+          Cabox — Bien elegido &copy; {new Date().getFullYear()}
         </p>
       </div>
     </div>

@@ -64,7 +64,7 @@ export function buildOrderConfirmationMessage(opts: {
     `💰 Total: *${fmtTotal}*\n` +
     `💳 Método de pago: *${paymentMethod}*\n\n` +
     `Te contactaremos pronto para confirmar los detalles de entrega.\n\n` +
-    `¡Gracias por comprar en Cabox — Curated Fashion! 🛍️`
+    `¡Gracias por comprar en Cabox — Bien elegido! 🛍️`
   );
 }
 

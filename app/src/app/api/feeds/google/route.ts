@@ -53,7 +53,7 @@ export async function GET() {
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0">
-  <title>Cabox — Curated Fashion</title>
+  <title>Cabox — Bien elegido</title>
   <link rel="alternate" type="text/html" href="${storeUrl}"/>
   <updated>${now}</updated>
 ${entries}

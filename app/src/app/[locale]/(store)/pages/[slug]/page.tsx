@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { PageHero } from '@/components/store/PageHero';
 
 /* ─── Page content database ──────────────────────────────────────────── */
 type PageContent = {
@@ -24,14 +25,16 @@ const PAGES: Record<string, PageContent> = {
           <p>Realizamos entregas en toda Costa Rica. Nuestro servicio principal cubre el <strong>Gran Área Metropolitana (GAM)</strong> con tiempos de entrega más rápidos.</p>
 
           <h3>Tarifas y tiempos de entrega</h3>
-          <table className="prose-table">
-            <thead><tr><th>Zona</th><th>Costo</th><th>Tiempo estimado</th></tr></thead>
-            <tbody>
-              <tr><td>GAM (San José, Alajuela, Cartago, Heredia)</td><td>₡2,500</td><td>1–2 días hábiles</td></tr>
-              <tr><td>Zona Central ampliada</td><td>₡4,500</td><td>2–3 días hábiles</td></tr>
-              <tr><td>Guanacaste, Puntarenas, Limón</td><td>₡6,000</td><td>3–5 días hábiles</td></tr>
-            </tbody>
-          </table>
+          <div className="prose-table-wrap">
+            <table className="prose-table">
+              <thead><tr><th>Zona</th><th>Costo</th><th>Tiempo estimado</th></tr></thead>
+              <tbody>
+                <tr><td>GAM (San José, Alajuela, Cartago, Heredia)</td><td>₡2,500</td><td>1–2 días hábiles</td></tr>
+                <tr><td>Zona Central ampliada</td><td>₡4,500</td><td>2–3 días hábiles</td></tr>
+                <tr><td>Guanacaste, Puntarenas, Limón</td><td>₡6,000</td><td>3–5 días hábiles</td></tr>
+              </tbody>
+            </table>
+          </div>
 
           <h3>Envío gratuito</h3>
           <p>Todos los pedidos <strong>mayores a ₡75,000</strong> dentro del GAM califican para <strong>envío gratuito</strong>.</p>
@@ -89,14 +92,16 @@ const PAGES: Record<string, PageContent> = {
           <p>We deliver throughout Costa Rica. Our primary service covers the <strong>Greater Metropolitan Area (GAM)</strong> with the fastest delivery times.</p>
 
           <h3>Rates & delivery times</h3>
-          <table className="prose-table">
-            <thead><tr><th>Zone</th><th>Cost</th><th>Estimated time</th></tr></thead>
-            <tbody>
-              <tr><td>GAM (San José, Alajuela, Cartago, Heredia)</td><td>₡2,500</td><td>1–2 business days</td></tr>
-              <tr><td>Extended Central Zone</td><td>₡4,500</td><td>2–3 business days</td></tr>
-              <tr><td>Guanacaste, Puntarenas, Limón</td><td>₡6,000</td><td>3–5 business days</td></tr>
-            </tbody>
-          </table>
+          <div className="prose-table-wrap">
+            <table className="prose-table">
+              <thead><tr><th>Zone</th><th>Cost</th><th>Estimated time</th></tr></thead>
+              <tbody>
+                <tr><td>GAM (San José, Alajuela, Cartago, Heredia)</td><td>₡2,500</td><td>1–2 business days</td></tr>
+                <tr><td>Extended Central Zone</td><td>₡4,500</td><td>2–3 business days</td></tr>
+                <tr><td>Guanacaste, Puntarenas, Limón</td><td>₡6,000</td><td>3–5 business days</td></tr>
+              </tbody>
+            </table>
+          </div>
 
           <h3>Free shipping</h3>
           <p>All orders <strong>over ₡75,000</strong> within the GAM qualify for <strong>free shipping</strong>.</p>
@@ -393,7 +398,7 @@ const PAGES: Record<string, PageContent> = {
           <p>Al acceder y utilizar el sitio web de <strong>Cabox</strong> (cabox.store), aceptas estar sujeto a estos Términos y Condiciones. Si no estás de acuerdo con alguna parte de estos términos, no debes utilizar nuestro servicio.</p>
 
           <h2>1. Sobre Cabox</h2>
-          <p>Cabox es una tienda de moda en línea operada desde Costa Rica. Vendemos ropa y accesorios curados para el mercado costarricense.</p>
+          <p>Cabox es una tienda de moda en línea operada desde Costa Rica. Vendemos ropa y accesorios bien elegidos para el mercado costarricense.</p>
 
           <h2>2. Uso del sitio</h2>
           <ul>
@@ -448,7 +453,7 @@ const PAGES: Record<string, PageContent> = {
           <p>By accessing and using the <strong>Cabox</strong> website (cabox.store), you agree to be bound by these Terms and Conditions. If you disagree with any part of these terms, you must not use our service.</p>
 
           <h2>1. About Cabox</h2>
-          <p>Cabox is an online fashion store operated from Costa Rica. We sell curated clothing and accessories for the Costa Rican market.</p>
+          <p>Cabox is an online fashion store operated from Costa Rica. We sell thoughtfully chosen clothing and accessories for the Costa Rican market.</p>
 
           <h2>2. Use of the site</h2>
           <ul>
@@ -526,11 +531,7 @@ export default async function StaticPage({ params }: Props) {
 
   return (
     <>
-      <div className="page-hero" style={{ paddingBlock: '2.5rem' }}>
-        <div className="container">
-          <h1>{title}</h1>
-        </div>
-      </div>
+      <PageHero variant="compact" title={title} />
 
       <div className="container prose-page">
         <article className="prose-article">

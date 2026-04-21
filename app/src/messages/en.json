@@ -1,6 +1,7 @@
 {
   "home": {
-    "welcome": "Cabox — Curated Fashion",
+    "brandTitle": "Cabox — Well chosen",
+    "welcome": "Cabox — Well chosen",
     "tagline": "Premium style for everyday living.",
     "shopNow": "Shop Collection"
   },
@@ -79,6 +80,7 @@
     }
   },
   "footer": {
+    "brandLine": "Well chosen with love · Costa Rica",
     "copyright": "© {year} Cabox. All rights reserved.",
     "contact": "Contact"
   },

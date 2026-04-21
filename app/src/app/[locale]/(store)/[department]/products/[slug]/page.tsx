@@ -5,6 +5,7 @@ import ProductGallery from '@/components/store/ProductGallery';
 import AddToCartButton from '@/components/store/AddToCartButton';
 import ProductCard from '@/components/store/ProductCard';
 import ShareButton from '@/components/store/ShareButton';
+import { StoreSectionHeader } from '@/components/store/StoreSection';
 import type { Metadata } from 'next';
 import { productDetailPath } from '@/lib/product-urls';
 
@@ -291,10 +292,11 @@ export default async function DepartmentProductDetailPage({ params }: Props) {
       </div>
 
       {related.length > 0 && (
-        <section style={{ marginTop: '4rem' }}>
-          <div className="section-header" style={{ marginBottom: '1.5rem' }}>
-            <h2>Productos relacionados</h2>
-          </div>
+        <section className="store-related-products">
+          <StoreSectionHeader
+            title={locale === 'es' ? 'Productos relacionados' : 'Related products'}
+            className="store-section-header--related"
+          />
           <div className="products-grid">
             {related.map((p) => (
               <ProductCard

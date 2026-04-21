@@ -46,12 +46,12 @@ export async function PUT(req: Request) {
     create: {
       key: SETTINGS_KEY,
       storeName:     storeName     ?? 'Cabox',
-      storeTagline:  storeTagline  ?? 'Moda Curada de Costa Rica',
+      storeTagline:  storeTagline  ?? 'Bien elegido · Costa Rica',
       supportPhone:  supportPhone  ?? '',
       paymentMethods: paymentMethods ?? defaultPaymentMethods(),
       logoUrl:       logoUrl        ?? '/logo.png',
       heroImageUrl:  heroImageUrl   ?? '',
-      footerText:    footerText     ?? 'Moda curada con amor · Costa Rica',
+      footerText:    footerText     ?? 'Bien elegido con amor · Costa Rica',
       themeColor:    (themeColor && validColor(themeColor)) ? themeColor : '#8B5E3C',
     },
     update: {

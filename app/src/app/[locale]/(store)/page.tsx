@@ -2,13 +2,15 @@ import { getTranslations, getLocale } from 'next-intl/server';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import ProductCard from '@/components/store/ProductCard';
+import { StoreSection, StoreSectionHeader } from '@/components/store/StoreSection';
 import type { Metadata } from 'next';
 import { getActiveDepartments } from '@/lib/departments';
 import { departmentHomePath, productDetailPath } from '@/lib/product-urls';
 
 export const metadata: Metadata = {
-  title: 'Cabox — Moda Curada de Costa Rica',
-  description: 'Descubre nuestra colección de ropa y accesorios premium, perfecta para el estilo de vida costarricense.',
+  title: 'Cabox — Bien elegido · Costa Rica',
+  description:
+    'Descubre nuestra colección de ropa y accesorios premium, bien elegidos para el estilo de vida costarricense.',
 };
 
 export default async function HomePage() {
@@ -56,7 +58,7 @@ export default async function HomePage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/cabox_hero_transp.png"
-                alt="Cabox — Moda Curada"
+                alt={t('brandTitle')}
                 width={480}
                 height={480}
               />
@@ -66,63 +68,61 @@ export default async function HomePage() {
       </section>
 
       {departments.length > 0 && (
-        <section className="section" style={{ paddingBlock: '2.5rem' }}>
-          <div className="container">
-            <div className="section-header" style={{ marginBottom: '1.25rem' }}>
-              <h2>{locale === 'es' ? 'Departamentos' : 'Departments'}</h2>
-            </div>
-            <div className="category-pills">
-              {departments.map((d) => (
-                <Link
-                  key={d.slug}
-                  href={departmentHomePath(locale, d.slug)}
-                  className="category-pill"
-                >
-                  {locale === 'es' ? d.nameEs : d.nameEn}
-                </Link>
-              ))}
-            </div>
+        <StoreSection className="section--dense">
+          <StoreSectionHeader title={locale === 'es' ? 'Departamentos' : 'Departments'} />
+          <div className="category-pills">
+            {departments.map((d) => (
+              <Link
+                key={d.slug}
+                href={departmentHomePath(locale, d.slug)}
+                className="category-pill"
+              >
+                {locale === 'es' ? d.nameEs : d.nameEn}
+              </Link>
+            ))}
           </div>
-        </section>
+        </StoreSection>
       )}
 
       {/* Featured products */}
       {featured.length > 0 && (
-        <section className="section">
-          <div className="container">
-            <div className="section-header">
-              <h2>Productos destacados</h2>
+        <StoreSection>
+          <StoreSectionHeader
+            title={
+              locale === 'es' ? 'Productos destacados' : 'Featured products'
+            }
+            action={
               <Link href={`/${locale}/products`} className="btn btn-secondary btn-sm">
-                Ver todos →
+                {locale === 'es' ? 'Ver todos →' : 'View all →'}
               </Link>
-            </div>
-            <div className="products-grid">
-              {featured.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    ...product,
-                    comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
-                    price: Number(product.price),
-                    images: product.images.map((img) => img.url),
-                    category: product.primaryCategory
-                      ? {
-                          slug: product.primaryCategory.slug,
-                          nameEs: product.primaryCategory.nameEs,
-                        }
-                      : null,
-                  }}
-                  locale={locale}
-                  detailHref={productDetailPath(
-                    locale,
-                    product.primaryDepartment.slug,
-                    product.slug,
-                  )}
-                />
-              ))}
-            </div>
+            }
+          />
+          <div className="products-grid">
+            {featured.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={{
+                  ...product,
+                  comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
+                  price: Number(product.price),
+                  images: product.images.map((img) => img.url),
+                  category: product.primaryCategory
+                    ? {
+                        slug: product.primaryCategory.slug,
+                        nameEs: product.primaryCategory.nameEs,
+                      }
+                    : null,
+                }}
+                locale={locale}
+                detailHref={productDetailPath(
+                  locale,
+                  product.primaryDepartment.slug,
+                  product.slug,
+                )}
+              />
+            ))}
           </div>
-        </section>
+        </StoreSection>
       )}
 
       {/* Value props */}

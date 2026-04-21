@@ -21,6 +21,7 @@ interface NavbarProps {
 
 export default function Navbar({ locale, departments = [] }: NavbarProps) {
   const t = useTranslations('nav');
+  const th = useTranslations('home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const itemCount = useCartStore((s) => s.totalItems());
@@ -36,7 +37,7 @@ export default function Navbar({ locale, departments = [] }: NavbarProps) {
       <header className="navbar">
         <div className="container navbar-inner">
           {/* Logo */}
-          <Link href={base} className="navbar-logo" title="Cabox — Moda Curada">
+          <Link href={base} className="navbar-logo" title={th('brandTitle')}>
             <Image
               src="/logo.png"
               alt="Cabox"

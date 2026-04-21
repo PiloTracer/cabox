@@ -469,13 +469,13 @@ model PriceChangeLog {
 model StoreSettings {
   key            String   @id @default("default")
   storeName      String   @default("Cabox")
-  storeTagline   String   @default("Moda Curada de Costa Rica")
+  storeTagline   String   @default("Bien elegido · Costa Rica")
   supportPhone   String   @default("")
   paymentMethods Json     @default("{}")
   // General / branding
   logoUrl        String   @default("/logo.png")
   heroImageUrl   String   @default("")
-  footerText     String   @default("Moda curada con amor · Costa Rica")
+  footerText     String   @default("Bien elegido con amor · Costa Rica")
   themeColor     String   @default("#8B5E3C")
   updatedAt      DateTime @updatedAt
 }

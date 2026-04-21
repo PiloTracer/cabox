@@ -23,7 +23,7 @@ interface Settings {
 
 const DEFAULTS: Settings = {
   storeName:    'Cabox',
-  storeTagline: 'Moda Curada de Costa Rica',
+  storeTagline: 'Bien elegido · Costa Rica',
   supportPhone: '',
   paymentMethods: {
     SINPE:    { enabled: true,  phone: '', accountName: '' },
