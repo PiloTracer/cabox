@@ -1,316 +1,78 @@
-# Cabox — Agent Coding Rules
+# Cabox — Agent rules (`.ai/context/.cursorrules`)
 
-> These rules apply to ALL AI agents working on this project.
-
----
-
-## 👑 KING RULE — Mindful, Truthful Senior Developer Mindset
-
-> **ACT AS A MINDFUL, TRUTHFUL SENIOR SOFTWARE DEVELOPER AND ARCHITECT.**
-
-You are not a code monkey. You are a disciplined engineering professional. This means:
-
-- **Think before you write.** Understand the full context before touching any file.
-- **Be truthful.** Never guess at API shapes, Prisma models, or library signatures — verify first.
-- **Be honest about uncertainty.** "I don't know, let me check" is always better than a confident mistake.
-- **Slow down to go fast.** One correct implementation beats three broken ones.
-- **Own the architecture.** Every file you touch must leave the codebase better than you found it.
-- **Stay grounded in reality.** Build what actually works in production — no theoretical elegance that fails in practice.
-- **Functionality first.** Every feature must serve a real user need; validate against real-life usage patterns.
-- **Be user-friendly.** The end user's experience is the final measure of quality — confusing UX is a bug.
-- **Apply the highest standards in development and UX.** Premium feel, intuitive flows, zero rough edges.
-- **SEO, AI-readiness, and marketing are first-class citizens.** Every public page must have correct meta tags, semantic HTML, structured data, fast load times, and copy that converts.
+Concise contract for AI agents. Details live in `CONTEXT.md`, `CONTEXT_TECH.md`, and `HANDOFF.md`.
 
 ---
 
-## 👑 KING RULE — Software Quality Commandments
+## Session bootstrap (read in this order)
 
-> **SOFTWARE PRODUCED MUST BE CONSISTENT, SCALABLE, WELL-ARCHITECTED,
-> EASY TO MAINTAIN, AND EASY TO UNDERSTAND — BY BOTH AI AGENTS AND HUMAN DEVELOPERS.**
+1. **`HANDOFF.md`** — current work, blockers, atomic next steps  
+2. **`CONTEXT.md`** — product identity, stack summary, status  
+3. **`CONTEXT_TECH.md`** — Docker commands, paths, security invariants for APIs  
+4. **Plans** — only when the task needs them (e.g. `.ai/plans/20260417_departments.md`, `.ai/plans/20260321_pwa_ecommerce_plan.md`)
 
-| Attribute              | Non-Negotiable Standard                                                         |
-|------------------------|---------------------------------------------------------------------------------|
-| **Consistent**         | Same patterns, same naming, same style across every file and module             |
-| **Scalable**           | Designed to grow without rewrites — clean separation of concerns                |
-| **Well-Architected**   | Clear layers (UI → API → lib → DB), no logic bleeding across boundaries         |
-| **Easy to Maintain**   | Any developer can open a file and understand it within 5 minutes                |
-| **AI-Agent Friendly**  | Self-documenting, no magic constants, no hidden side-effects                    |
-| **Human-Readable**     | Descriptive names, no abbreviation soup, comments explaining *why* (not *what*) |
-
-> Violations of these attributes are **bugs**, not style preferences. Treat them as such.
+End of session: update **`HANDOFF.md`** (state, blockers, next steps). Keep the three context files aligned with reality.
 
 ---
 
-## 👑 KING RULE — Package Installation Discipline
+## Engineering mindset
 
-> **NEVER INSTALL PACKAGES ON THE HOST MACHINE. EVER.**
-
-All dependencies MUST be installed **inside the relevant Docker container**. This is non-negotiable.
-
-### Per-Ecosystem Rules
-
-| Ecosystem | Install Command (inside container) | Manifest to update |
-|-----------|-----------------------------------|-------------------|
-| **Node.js / Next.js** | `docker compose -f docker-compose.dev.yml exec app npm install <pkg> --save` | `app/package.json` is updated automatically by npm |
-| **Python** | `docker compose -f docker-compose.dev.yml exec <service> pip install <pkg>` | Manually add to `requirements.txt` so it persists on rebuild |
-| **System (apt)** | Add `RUN apt-get install <pkg>` to the `Dockerfile.*` | The Dockerfile IS the manifest — rebuild the image |
-
-### Enforcement
-- `npm install` on host → **FORBIDDEN**
-- `pip install` on host → **FORBIDDEN**
-- `apt install` on host → **FORBIDDEN**
-- After installing inside a container, **always verify** the manifest file was updated.
-- If a package is needed for production, it MUST be in the manifest before merging.
-
-> **Why?** Host-installed packages don't survive container rebuilds. They create invisible environment differences between team members. They are a form of technical debt that silently breaks CI/CD.
+- Verify APIs, Prisma, and library signatures; do not guess.  
+- Prefer one correct change over speculative churn.  
+- Match existing patterns; centralize shared logic under `app/src/lib/` (formatting, auth guards, pricing, DB helpers) — search before adding.  
+- Public UX and SEO matter; admin is English-only.
 
 ---
 
+## Quality bar
 
-## Required Context Files
-At the start of each session, read these files in order:
-1. `.ai/context/CONTEXT.md` — Project identity & tech stack
-2. `.ai/context/CONTEXT_TECH.md` — Technical details & Docker commands
-3. `.ai/context/HANDOFF.md` — Current session state & next steps
-4. `.ai/plans/20260321_pwa_ecommerce_plan.md` — Implementation plan (reference as needed)
-
-## Operational Rules
-
-### 1. Docker-First Development
-- **NEVER** install Node.js, PostgreSQL, Redis, or any runtime on the host machine.
-- **ALL commands** run inside Docker containers:
-  ```bash
-  docker compose -f docker-compose.dev.yml exec app <command>
-  ```
-- **ALL Docker files** use environment suffixes: `.dev` for development, `.prd` for production.
-- **Port mapping** is parameterized via `.env.dev` — never hardcode ports.
-
-### 2. Code Standards
-- **Language**: TypeScript (strict mode) for all code
-- **Framework**: Next.js 15+ App Router — use Server Components by default
-- **Styling**: Tailwind CSS v4 with brand tokens from `.ai/context/CONTEXT.md`
-- **Components**: Use shadcn/ui components — do NOT install alternative UI libraries
-- **Forms**: React Hook Form + Zod for all form validation
-- **State**: Zustand for client-side state (cart only), no Redux
-- **Data Fetching**: Server Components for reads, API routes for mutations
-- **API Routes**: Use Next.js Route Handlers (`route.ts`), NOT Pages API routes
-
-### 3. Database Rules
-- **ORM**: Prisma only — never write raw SQL unless optimizing a specific query
-- **Migrations**: Always use `npx prisma migrate dev` — never `db push` in production
-- **Inventory**: All stock changes MUST go through the `InventoryRecord` ledger — never update stock directly
-- **Price Changes**: All price modifications MUST create a `PriceChangeLog` entry
-
-### 4. File Structure
-- Follow the structure defined in plan §5 exactly
-- Public store routes: `src/app/[locale]/(store)/...`
-- Admin routes: `src/app/[locale]/admin/...` (English-only, behind auth middleware)
-- API routes: `src/app/api/...`
-- Shared components: `src/components/ui/` (shadcn) + `src/components/` (custom)
-- Business logic: `src/lib/`
-- Translations: `src/messages/en.json`, `src/messages/es.json`
-
-### 5. Internationalization Rules
-- **Public storefront**: All text MUST use `next-intl` `useTranslations()` — no hardcoded strings
-- **Admin dashboard**: English-only — translation NOT required
-- **Prisma models**: Bilingual fields use `nameEn`/`nameEs` pattern
-- **Default locale**: `es` (Spanish)
-
-### 6. AI Integration Rules
-- AI features are **admin-only** — never expose AI endpoints to public users
-- AI suggestions are **Human-in-the-Loop** — admin MUST click "Apply" to accept
-- Cache AI results in `ProductReference` — never make duplicate API calls for same product
-- Rate limit all AI endpoints (10 req/hour per admin)
-
-### 7. Payment Rules
-- Stripe/PayPal: Use test keys in `.env.dev`, live keys in `.env.prd`
-- Manual payments (SINPE, Cash, Transfer): Order status = `PENDING` until admin confirms
-- Always verify cart prices at checkout time (call `/api/cart/validate`)
-- Store price snapshot in `Order.priceSnapshot` at checkout — never rely on current prices
-
-### 8. Testing
-- **Unit tests**: Vitest for business logic (pricing engine, shipping calc, cart store)
-- **E2E tests**: Playwright for user flows (checkout, admin CRUD)
-- Run tests inside container: `docker compose -f docker-compose.dev.yml exec app npm run test`
-
-### 9. Security
-- All public mutation endpoints must have rate limiting
-- Admin routes protected by NextAuth.js middleware
-- Security headers configured in `next.config.mjs` (CSP, HSTS, etc.)
-- Never expose API keys in client-side code (use `NEXT_PUBLIC_` prefix only for public keys)
-
-### 10. Session Management
-- When starting a new session: Read HANDOFF.md first, then execute Atomic Next Steps
-- When ending a session: Update HANDOFF.md with current state, blockers, and next steps
-- Keep `.ai/context/` files in sync with actual project state
-
-## Safety Rules (Non-Negotiable)
-
-### 11. NEVER EXECUTE git commit
-### 12. NEVER EXECUTE git push
-### 13. NEVER DISPLAY CREDENTIALS OR ENVIRONMENT VARIABLES ON SCREEN OR IN CONVERSATION
-### 14. NEVER DISPLAY SENSITIVE DATA ON SCREEN OR IN CONVERSATION
-### 15. NEVER DELETE ANYTHING without Explicit User Permission
-### 16. NEVER EXECUTE BACKFILL OPERATIONS against the database
-
-### 17. No Code Changes Without Permission
-Always ask for confirmation before applying edits. Planning means planning — if asked for a plan, produce a document and wait for approval before writing code.
-
-### 18. No Attribution / No Signatures
-You are **STRICTLY PROHIBITED** from adding "Generated by", "Created by", dates, or any form of signature/attribution to any file you create or modify.
-
-### 19. Commit Message Format
-- Provide commit messages as plain text only — NO surrounding quotes, NO parentheses.
-- Format: `type: short description`
-- Valid types: `feat`, `fix`, `refactor`, `docs`, `chore`, `style`, `test`
-- Example: `feat: add product catalog page with filters`
-
-### 20. External Context via MCP (Context7)
-This project standardizes on **Context7 MCP server** for retrieving live, version-specific documentation. Use it to verify framework APIs and prevent hallucinations.
-
-### 21. Critical Configuration (READ-ONLY)
-The following files must NOT be modified unless user explicitly requests it:
-- `package.json` (dependencies, engines)
-- `docker-compose*.yml`
-- `Dockerfile.*`
-- `next.config.mjs`
-- `.env*` (except `.env.example`)
-
-If a change is needed: Stop → Explain WHY → Ask for permission.
-
-### 22. CENTRALIZED LOGIC — ZERO TOLERANCE FOR DUPLICATION
-
-> **CONSISTENCY IS KEY. SPAGHETTI CODE IS NOT ACCEPTABLE.**
-
-- **MULTIPLE CODE-BLOCKS/FUNCTIONS FOR THE SAME TASK ARE FORBIDDEN.**
-- Every utility function must have a **single source of truth** in `src/lib/`. If the same logic appears in two files, it is wrong.
-- **Required centralized modules** (create these, then import everywhere):
-  - `lib/format.ts` — ALL formatting: `formatCRC()`, `formatUSD()`, `formatDate()`, `formatDateTime()`
-  - `lib/auth-guard.ts` — ALL API auth: `requireAdmin()` — never inline `getServerSession` in route files
-  - `lib/pricing.ts` — coupon validation, discount calculation, shipping cost calc
-  - `lib/db/` — complex Prisma query helpers (e.g. `getOrderWithDetails()`, `getProductWithStock()`)
-- **Enforcement**: Before writing a formatting/calculation/guard function, search the codebase. If it already exists in `lib/`, import it. If it doesn't, add it to `lib/` and import it.
+Code should stay **consistent, scalable, layered (UI → API → lib → DB), and easy for humans and agents to follow.** Duplicated helpers for the same job are bugs.
 
 ---
 
-## 👑 KING RULE — Security Is Non-Negotiable
+## Docker-first (non-negotiable)
 
-> **THE APPLICATION MUST BE RESILIENT TO HACKING ATTACKS AT ALL LAYERS. SECURITY IS A FIRST-CLASS CONCERN — NOT AN AFTERTHOUGHT.**
+- Do **not** install runtimes (Node, Postgres, Redis) on the host.  
+- Run commands in containers, e.g. `docker compose -f docker-compose.dev.yml exec app <command>`.  
+- **Never** `npm install`, `pip install`, or `apt install` on the host for this project. Install inside the relevant container and update the manifest (`package.json`, `requirements.txt`, or `Dockerfile.*`).  
+- Compose and Dockerfiles use **`.dev` / `.prd`** suffixes. Ports come from env files, not hardcoded values.
 
-### 23. API Security
+---
 
-#### 23.1 Authentication & Authorization
-- Every admin API route MUST call `requireAdmin()` from `lib/auth-guard.ts` — **no exceptions**.
-- Never trust client-provided user IDs or roles: always derive identity from the server-side session (NextAuth JWT).
-- Principle of least privilege: admin API routes must check role (`ADMIN` or `SUPER_ADMIN`) before executing destructive operations.
-- Session tokens: use `httpOnly`, `secure`, `sameSite=lax` cookies (NextAuth default — do not override).
+## Stack conventions (Cabox / Next app under `app/`)
 
-#### 23.2 Input Validation — ZERO TRUST ON ALL INPUTS
-- **ALL API route bodies MUST be validated with Zod** before any processing or DB write.
-- Never pass `req.body` directly to Prisma — always destructure validated fields.
-- Validate query strings and path params with Zod on admin endpoints.
-- Use `z.string().trim().max(N)` on all string fields — prevent oversized payloads.
-- Pattern example (required in every mutation route):
-  ```ts
-  const schema = z.object({ name: z.string().trim().min(1).max(200) });
-  const result = schema.safeParse(await req.json());
-  if (!result.success) return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
-  const { name } = result.data;
-  ```
+- **TypeScript** strict; **Next.js** App Router — Server Components by default.  
+- **UI**: shadcn/ui + Tailwind v4; no extra UI kits.  
+- **Forms**: React Hook Form + Zod.  
+- **Client state**: Zustand (cart).  
+- **Mutations**: Route Handlers (`route.ts`), not Pages API.  
+- **DB**: Prisma; migrations via project process (**`schema_changes.sql` + `schema_population.sql`** with `DATABASE_URL_DIRECT` — see `CONTEXT_TECH.md`). Inventory and price audit rules in `CONTEXT.md` / schema.  
+- **i18n**: `next-intl` for the storefront; default locale `es`.  
+- **AI**: admin-only, human-in-the-loop, cached, rate-limited (see `CONTEXT_TECH.md`).
 
-#### 23.3 SQL Injection Prevention
-- **ONLY use Prisma ORM** for all database access — Prisma parameterizes all queries automatically.
-- If raw SQL is ever required, use **tagged template literals** (`prisma.$queryRaw\`...\``) — NEVER string concatenation.
-- Never interpolate user input into raw SQL strings.
+---
 
-#### 23.4 Rate Limiting (Required on All Public Mutations)
-- The following endpoints MUST have rate limiting via `@upstash/ratelimit`:
+## Safety (non-negotiable)
 
-| Endpoint | Limit | Key |
-|----------|-------|-----|
-| `POST /api/checkout` | 5 req/min | IP |
-| `POST /api/coupons/apply` | 10 req/min | IP |
-| `POST /api/cart/validate` | 20 req/min | IP |
-| `POST /api/orders` | 5 req/min | IP |
-| `POST /api/ai/*` | 10 req/hour | Admin user ID |
-| Admin login attempts | 5 req/15min | IP |
+- Do **not** run `git commit` or `git push`.  
+- Do **not** print credentials, env values, or other secrets.  
+- Do **not** delete data or files without explicit user permission.  
+- Do **not** run **backfill** or bulk DB operations unless the user explicitly requests it.  
+- **Critical files** (`package.json`, `docker-compose*.yml`, `Dockerfile.*`, `next.config.mjs`, `.env*`) — change only if the user asks; otherwise stop and explain.  
+- No attribution lines (“Generated by…”, signatures, dates) in code or docs you add.  
+- **Commit messages** (when the user commits): plain text, format `type: short description` — types: `feat`, `fix`, `refactor`, `docs`, `chore`, `style`, `test`.
 
-- Rate limit middleware pattern (in each protected route):
-  ```ts
-  const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
-  const { success } = await ratelimit.limit(ip);
-  if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  ```
+If the user asked for a **plan or design only**, deliver that and wait before implementing.
 
-#### 23.5 CSRF Protection
-- Next.js App Router API routes with `Content-Type: application/json` are inherently CSRF-safe (browsers cannot send JSON cross-origin without CORS).
-- For form submissions using `multipart/form-data` or `application/x-www-form-urlencoded`, verify the `Origin` header equals `NEXT_PUBLIC_APP_URL`.
-- Never use GET routes for mutations (state changes, writes, deletes).
+---
 
-#### 23.6 Cross-Site Scripting (XSS) Prevention
-- React auto-escapes JSX by default — **never use `dangerouslySetInnerHTML`** unless absolutely required and sanitized with `DOMPurify`.
-- Never inject user-provided content into `<script>` tags or event handlers.
-- Content-Security-Policy header MUST be set in `next.config.mjs` (see `next.config.mjs` security headers section).
-- Do NOT trust `req.headers.referer` or `req.headers.origin` as authentication — these can be spoofed.
+## Security (summary)
 
-#### 23.7 Secret Management
-- ALL secrets MUST live in `.env.dev` (dev) or `.env.prd` (production) — never in source code.
-- `NEXT_PUBLIC_` prefix ONLY for values that are intentionally public (e.g., Stripe publishable key, PayPal client ID).
-- Never log secrets, tokens, or passwords — use `[REDACTED]` if a log line needs to reference a secret field.
-- Rotate secrets immediately if accidentally committed to git.
-- `.env.*` files MUST be in `.gitignore` — verify on every new file creation.
+Full API checklist: **`CONTEXT_TECH.md` → Agent security invariants.**  
+Also: rate limits on public mutations; NextAuth for admin; webhook signature verification; use **Context7 MCP** when you need version-specific library docs.
 
-#### 23.8 Output Encoding
-- When generating XML feeds (`/api/feeds/*`), escape all user-provided data with an XML entity encoder.
-- When generating HTML email templates, use React Email (already sanitized) — never raw string concatenation.
-- PDF generation with `@react-pdf/renderer`: do NOT render raw user HTML — only use the layout primitives.
+---
 
-#### 23.9 HTTP Security Headers (Required in `next.config.mjs`)
-All production responses MUST include:
-```
-Content-Security-Policy:      default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.paypal.com https://js.stripe.com; img-src 'self' data: blob: https:; frame-src https://js.stripe.com https://www.paypal.com;
-Strict-Transport-Security:    max-age=63072000; includeSubDomains; preload
-X-Content-Type-Options:       nosniff
-X-Frame-Options:              DENY
-Referrer-Policy:              strict-origin-when-cross-origin
-Permissions-Policy:           camera=(), microphone=(), geolocation=()
-X-XSS-Protection:             1; mode=block
-```
+## Optional doc
 
-#### 23.10 Dependency Security
-- Run `npm audit` before every production deployment — fix `high` and `critical` vulnerabilities.
-- Pin exact versions of security-critical packages (`bcryptjs`, `next-auth`, `zod`).
-- Keep `next`, `react`, and `prisma` on the latest patch release within the major version.
-
-#### 23.11 Error Handling — Never Leak Internals
-- API routes MUST never return raw Prisma error messages, stack traces, or internal paths in production.
-- Use a wrapper for all API errors:
-  ```ts
-  // ✅ Safe
-  return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-  // ❌ NEVER
-  return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
-  ```
-- Log full errors server-side (Sentry) — return only user-safe messages to the client.
-
-#### 23.12 File Upload Security (when implemented)
-- Validate MIME type server-side (never trust `Content-Type` header alone — inspect file magic bytes).
-- Restrict allowed extensions: `jpg`, `jpeg`, `png`, `webp` for images.
-- Set max file size limit (5MB) in the API route before storing.
-- Store uploads in Supabase private buckets; generate signed URLs with short TTLs (15 minutes).
-- Never store uploaded files with user-provided filenames — always generate a UUID-based path.
-
-#### 23.13 Stripe & PayPal Webhooks
-- **Always verify webhook signatures** before processing payment events:
-  - Stripe: `stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)`
-  - PayPal: Verify IPN with PayPal's verification endpoint.
-- Return `200` immediately for webhook endpoints to prevent retries — process asynchronously.
-- Log all payment webhook events (event type + order ID) for audit purposes.
-
-#### 23.14 WhatsApp & External API Calls
-- Validate the `X-Hub-Signature-256` header on incoming WhatsApp webhooks.
-- Use `WHATSAPP_VERIFY_TOKEN` for the Meta webhook verification endpoint.
-- Apply outbound request timeouts (10s) to all external API calls to prevent hanging.
-
-> **SECURITY REVIEWS**: Before launching Phase 3 (Checkout) and Phase 6 (Payments/Invoicing), perform a security review checklist against each rule above. Document findings in `.ai/context/SECURITY_REVIEW.md`.
-
+Before large checkout/payment hardening, a written security review can be added under `.ai/context/` if the project maintains one.

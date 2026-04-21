@@ -1,6 +1,6 @@
 # Cabox — Technology Stack & Development Reference
 
-> **Last Updated**: 2026-04-17 (session close)
+> **Last Updated**: 2026-04-20
 
 ## Frontend Technologies
 
@@ -119,6 +119,20 @@
 - CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy
 - Configured in `next.config.mjs`
 
+## Agent security invariants (implementing APIs)
+
+Use these on every mutation / admin route; expand only when touching payments, uploads, or webhooks.
+
+- **Auth**: Admin routes use `requireAdmin()` from `lib/auth-guard.ts`; identity from session only, never from the client body.
+- **Input**: Validate JSON body, query, and path params with **Zod** before Prisma; trim strings and cap length; never pass raw `req.body` to Prisma.
+- **DB**: Prisma only; raw SQL only with tagged templates, never string-concatenated user input.
+- **Rate limits**: Public mutations and AI routes use `@upstash/ratelimit` (see stack table above for typical limits); keys by IP or admin user ID as appropriate.
+- **Secrets**: Only in `.env.dev` / `.env.prd`; never log secrets; `NEXT_PUBLIC_*` only for intentionally public values.
+- **Errors**: Return generic messages to clients in production; log details server-side (e.g. Sentry), not stack traces in JSON.
+- **XSS**: No `dangerouslySetInnerHTML` without sanitization; no user content in `<script>` or handlers.
+- **Webhooks**: Verify Stripe / PayPal / WhatsApp signatures before processing; respond quickly, process idempotently.
+- **Uploads** (when present): Validate type/size server-side; UUID paths; private buckets + short-lived signed URLs.
+
 ### Social Commerce
 - **Meta Pixel**: Client-side tracking (PageView, AddToCart)
 - **Meta Conversions API (CAPI)**: Server-side Purchase events
@@ -175,26 +189,29 @@ docker compose -f docker-compose.dev.yml exec app npm run test
 docker compose -f docker-compose.dev.yml exec app npm run test:e2e
 ```
 
-## Project File Structure (Key Paths)
+## Project File structure (key paths)
 ```
 cabox/
-├── .ai/context/           # AI context files (this file lives here)
-├── .ai/plans/             # Implementation plans
-├── Dockerfile.dev         # Dev container
-├── docker-compose.dev.yml # Dev stack
-├── .env.dev               # Dev environment variables
-├── spawn_store.sh         # Multi-store spawner
-├── templates/env.dev.template
-├── nginx/default.dev.conf
-├── next.config.mjs        # output: 'standalone'
-├── prisma/schema.prisma   # 18 data models
-├── src/app/[locale]/      # i18n root (public store)
-├── src/app/[locale]/admin/ # Admin dashboard (EN-only)
-├── src/app/api/           # API routes
-├── src/components/        # Shared UI components
-├── src/lib/               # Business logic, utils
-├── src/stores/            # Zustand stores
-└── src/messages/          # i18n translation files (en.json, es.json)
+├── .ai/context/              # Agent context (this file)
+├── .ai/plans/                # Plans
+├── Dockerfile.dev            # Dev app image
+├── docker-compose.dev.yml
+├── .env.dev
+├── app/
+│   ├── prisma/schema.prisma
+│   ├── prisma/schema_changes.sql, schema_population.sql
+│   ├── docker-entrypoint.sh
+│   ├── next.config.mjs
+│   └── src/
+│       ├── app/[locale]/     # Store (i18n)
+│       ├── app/admin/        # Admin (EN)
+│       ├── app/api/
+│       ├── components/
+│       ├── lib/
+│       ├── stores/
+│       └── messages/         # en.json, es.json
+├── nginx/
+└── bin/start.sh
 ```
 
 ## Environment Variables (Categories)

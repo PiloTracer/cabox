@@ -1,6 +1,6 @@
 # Cabox — Curated Fashion PWA Store
 
-> **Last Updated**: 2026-04-17 (session close — see HANDOFF)
+> **Last Updated**: 2026-04-20
 > **License**: Copyright (c) 2026 Alejandro Castro. All rights reserved.
 
 ## Core Identity
@@ -61,6 +61,8 @@
 | `.ai/context/HANDOFF.md` | Session resumption state |
 | `.ai/context/.cursorrules` | Agent coding rules |
 
+**Agent bootstrap order:** `HANDOFF.md` → `CONTEXT.md` → `CONTEXT_TECH.md` → plans as needed.
+
 ## Development Status
 - **Current Phase**: Phase 5 — Core Integrations (in progress)
 - **Completed**: Phase 4 — Storefront Professional Enhancements (cart drawer, image zoom, skeletons, SEO schema)
@@ -83,10 +85,11 @@
 | **Departments (catalog + routing)** | ✅ Code / ⚠️ DB | Store + APIs + `[department]` routes; DB must run `schema_changes.sql` + `schema_population.sql` (container entrypoint) |
 | **WhatsApp Plan** | ❌ Empty | `.ai/plans/20260322_whatsapp_plan.md` is 0 bytes |
 
-## Next Steps
-1. **Apply departments SQL** on each env (redeploy app so entrypoint runs `schema_changes.sql` + `schema_population.sql`) — `.ai/context/HANDOFF.md`
-2. Complete PWA service worker configuration
-3. Verify admin categories management page
-4. Populate or remove empty WhatsApp plan file
-5. StripeConnect/payouts (future)
-6. Inventory variants UI
+## Next steps
+
+1. **Departments DB / prod** — see **`.ai/context/HANDOFF.md`** (atomic steps).  
+2. PWA service worker configuration.  
+3. Verify admin categories page.  
+4. Populate or remove `.ai/plans/20260322_whatsapp_plan.md`.  
+5. Stripe Connect / payouts (future).  
+6. Inventory variants UI.

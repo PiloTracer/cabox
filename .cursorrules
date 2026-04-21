@@ -1,0 +1,5 @@
+# Cabox
+
+Authoritative agent rules: **`.ai/context/.cursorrules`**
+
+Bootstrap: **`.ai/context/HANDOFF.md`** → **`.ai/context/CONTEXT.md`** → **`.ai/context/CONTEXT_TECH.md`**
