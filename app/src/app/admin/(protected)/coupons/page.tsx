@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import { formatCRC, formatDate } from '@/lib/format';
 import { CreateCouponBtn } from '@/components/admin/CreateCouponBtn';
+import CouponActiveToggle from '@/components/admin/CouponActiveToggle';
 
 export const metadata: Metadata = { title: 'Cupones — Cabox Admin' };
 
@@ -35,11 +36,12 @@ export default async function AdminCouponsPage() {
               <th>Usos</th>
               <th>Expira</th>
               <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {coupons.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                 Sin cupones. Usa el botón «+ Nuevo Cupón» para crear el primero.
               </td></tr>
             ) : coupons.map((c) => {
@@ -67,6 +69,9 @@ export default async function AdminCouponsPage() {
                     <span className={`badge badge-${active ? 'success' : exhausted ? 'warning' : 'muted'}`}>
                       {active ? 'Activo' : exhausted ? 'Agotado' : expired ? 'Expirado' : 'Inactivo'}
                     </span>
+                  </td>
+                  <td>
+                    <CouponActiveToggle id={c.id} isActive={c.isActive} />
                   </td>
                 </tr>
               );

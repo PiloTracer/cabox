@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import { formatCRC } from '@/lib/format';
+import ShippingZoneCreateForm from '@/components/admin/ShippingZoneCreateForm';
 
 export const metadata: Metadata = { title: 'Envíos — Cabox Admin' };
 
@@ -18,9 +19,11 @@ export default async function AdminShippingPage() {
         </p>
       </div>
 
+      <ShippingZoneCreateForm provinces={CR_PROVINCES} />
+
       {zones.length === 0 && (
-        <div className="admin-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
-          No hay zonas configuradas. Las zonas se crean via la API <code>/api/admin/shipping</code>.
+        <div className="admin-card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
+          No hay zonas guardadas todavía. Usá el formulario de arriba para crear la primera.
         </div>
       )}
 

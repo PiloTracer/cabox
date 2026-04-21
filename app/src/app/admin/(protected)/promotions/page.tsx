@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import { formatCRC, formatDate } from '@/lib/format';
 import { CreatePromotionBtn } from '@/components/admin/CreatePromotionBtn';
+import PromotionActiveToggle from '@/components/admin/PromotionActiveToggle';
 
 export const metadata: Metadata = { title: 'Promociones — Cabox Admin' };
 
@@ -32,11 +33,12 @@ export default async function AdminPromotionsPage() {
               <th>Vigencia</th>
               <th>Prioridad</th>
               <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {promotions.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                 Sin promociones. Usa el botón «+ Nueva Promoción» para crear la primera.
               </td></tr>
             ) : promotions.map((p) => {
@@ -63,6 +65,9 @@ export default async function AdminPromotionsPage() {
                     <span className={`badge badge-${active ? 'success' : 'muted'}`}>
                       {active ? 'Activa' : p.isActive && new Date(p.endsAt) < now ? 'Expirada' : 'Inactiva'}
                     </span>
+                  </td>
+                  <td>
+                    <PromotionActiveToggle id={p.id} isActive={p.isActive} />
                   </td>
                 </tr>
               );

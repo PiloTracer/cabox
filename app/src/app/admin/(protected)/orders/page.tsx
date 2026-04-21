@@ -21,19 +21,22 @@ const PAY_LABEL: Record<string, string> = {
 };
 
 interface Props {
-  searchParams: Promise<{ status?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; page?: string; customerId?: string }>;
 }
 
 const PAGE_SIZE = 20;
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
-  const { status, page: pageStr } = await searchParams;
+  const { status, page: pageStr, customerId } = await searchParams;
   const page = parseInt(pageStr ?? '1', 10);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const where = status ? { status: status as import('@prisma/client').OrderStatus } : {};
+  const where: import('@prisma/client').Prisma.OrderWhereInput = {
+    ...(status ? { status: status as import('@prisma/client').OrderStatus } : {}),
+    ...(customerId ? { customerId } : {}),
+  };
 
-  const [orders, total] = await Promise.all([
+  const [orders, total, filterCustomer] = await Promise.all([
     prisma.order.findMany({
       where,
       include: { customer: true, items: { take: 1 } },
@@ -42,6 +45,12 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       take: PAGE_SIZE,
     }),
     prisma.order.count({ where }),
+    customerId
+      ? prisma.customer.findUnique({
+          where: { id: customerId },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   const pages = Math.ceil(total / PAGE_SIZE);
@@ -50,20 +59,34 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
   return (
     <div className="admin-page">
       <div className="admin-page-header">
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>
-          Pedidos ({total})
-        </h1>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>
+            Pedidos ({total})
+          </h1>
+          {filterCustomer && (
+            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.35rem', fontSize: '0.9rem' }}>
+              Filtrado por cliente: <strong>{filterCustomer.name}</strong>
+              {' · '}
+              <Link href="/admin/orders" style={{ color: 'var(--color-primary)' }}>
+                Ver todos los pedidos
+              </Link>
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Status filter tabs */}
       <div className="filter-bar" style={{ marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <Link href="/admin/orders" className={`filter-chip ${!status ? 'active' : ''}`}>
+        <Link
+          href={customerId ? `/admin/orders?customerId=${customerId}` : '/admin/orders'}
+          className={`filter-chip ${!status ? 'active' : ''}`}
+        >
           Todos
         </Link>
         {statuses.map((s) => (
           <Link
             key={s}
-            href={`/admin/orders?status=${s}`}
+            href={`/admin/orders?status=${s}${customerId ? `&customerId=${customerId}` : ''}`}
             className={`filter-chip ${status === s ? 'active' : ''}`}
           >
             {STATUS_LABEL[s]}
@@ -133,15 +156,21 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
 
       {pages > 1 && (
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1.5rem' }}>
-          {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
-            <Link
-              key={p}
-              href={`/admin/orders?${status ? `status=${status}&` : ''}page=${p}`}
-              className={`filter-chip ${p === page ? 'active' : ''}`}
-            >
-              {p}
-            </Link>
-          ))}
+          {Array.from({ length: pages }, (_, i) => i + 1).map((p) => {
+            const qs = new URLSearchParams();
+            if (status) qs.set('status', status);
+            if (customerId) qs.set('customerId', customerId);
+            qs.set('page', String(p));
+            return (
+              <Link
+                key={p}
+                href={`/admin/orders?${qs.toString()}`}
+                className={`filter-chip ${p === page ? 'active' : ''}`}
+              >
+                {p}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,11 +1,14 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Metadata } from 'next';
 import { formatCRC } from '@/lib/format';
 import {
   countUnclassifiedProducts,
   findUnclassifiedProductIds,
 } from '@/lib/departments';
+
+export const metadata: Metadata = { title: 'Productos — Cabox Admin' };
 
 interface Props {
   searchParams: Promise<{ filter?: string }>;

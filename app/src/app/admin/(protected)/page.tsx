@@ -2,8 +2,27 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { ShoppingBag, Package, TrendingUp } from 'lucide-react';
 import { formatCRC, formatDate } from '@/lib/format';
+
+export const metadata: Metadata = { title: 'Dashboard — Cabox Admin' };
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Pendiente',
+  CONFIRMED: 'Confirmado',
+  PROCESSING: 'En proceso',
+  SHIPPED: 'Enviado',
+  DELIVERED: 'Entregado',
+  CANCELLED: 'Cancelado',
+};
+
+const PAY_LABEL: Record<string, string> = {
+  PENDING: 'Pendiente',
+  COMPLETED: 'Pagado',
+  FAILED: 'Fallido',
+  REFUNDED: 'Reembolsado',
+};
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
@@ -82,8 +101,16 @@ export default async function AdminDashboard() {
                         #{order.orderNumber}
                       </Link>
                     </td>
-                    <td><span className={`badge badge-${statusBadge(order.status)}`}>{order.status}</span></td>
-                    <td><span className={`badge badge-${payBadge(order.paymentStatus)}`}>{order.paymentStatus}</span></td>
+                    <td>
+                      <span className={`badge badge-${statusBadge(order.status)}`}>
+                        {ORDER_STATUS_LABEL[order.status] ?? order.status}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge badge-${payBadge(order.paymentStatus)}`}>
+                        {PAY_LABEL[order.paymentStatus] ?? order.paymentStatus}
+                      </span>
+                    </td>
                     <td className="price">{formatCRC(order.total)}</td>
                     <td style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
                       {formatDate(order.createdAt)}
@@ -108,6 +135,11 @@ function statusBadge(s: string) {
 }
 
 function payBadge(s: string) {
-  const map: Record<string, string> = { UNPAID: 'warning', PAID: 'success', REFUNDED: 'muted' };
+  const map: Record<string, string> = {
+    PENDING: 'warning',
+    COMPLETED: 'success',
+    FAILED: 'error',
+    REFUNDED: 'muted',
+  };
   return map[s] ?? 'muted';
 }

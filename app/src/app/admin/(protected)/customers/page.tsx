@@ -43,14 +43,22 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>Clientes ({total})</h1>
       </div>
 
-      <form method="get" style={{ marginBottom: '1rem' }}>
+      <form method="get" style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           name="q"
           defaultValue={q}
           className="input"
           placeholder="Buscar por nombre, email o teléfono…"
-          style={{ maxWidth: '400px' }}
+          style={{ maxWidth: '400px', flex: '1 1 220px' }}
         />
+        <button type="submit" className="btn btn-secondary btn-sm">
+          Buscar
+        </button>
+        {q && (
+          <Link href="/admin/customers" className="btn btn-secondary btn-sm">
+            Limpiar
+          </Link>
+        )}
       </form>
 
       <div className="admin-table-wrap">
