@@ -1,17 +1,28 @@
-# Cabox — Agent rules (`.ai/context/.cursorrules`)
+---
+description: Cabox agent contract — bootstrap, safety, Docker-first, stack conventions
+alwaysApply: true
+---
 
-Concise contract for AI agents. Details live in `CONTEXT.md`, `CONTEXT_TECH.md`, and `HANDOFF.md`.
+# Cabox — Agent rules
+
+Concise contract for AI agents. Expanded detail lives in **`rules_context.mdc`**; session state lives in the handoff file below.
+
+---
+
+## Session handoff (canonical path)
+
+- **File**: **`.ai/context/HANDOFF.md`** (repo root → `.ai` → `context` → `HANDOFF.md`).  
+- **Meaning**: Whenever the user or docs say **handoff**, **session handoff**, or **HANDOFF**, they mean **this file** — not `HANDOFF.md` at repo root and not any other path. Open or update **`.ai/context/HANDOFF.md`**.
 
 ---
 
 ## Session bootstrap (read in this order)
 
-1. **`HANDOFF.md`** — current work, blockers, atomic next steps  
-2. **`CONTEXT.md`** — product identity, stack summary, status  
-3. **`CONTEXT_TECH.md`** — Docker commands, paths, security invariants for APIs  
-4. **Plans** — only when the task needs them (e.g. `.ai/plans/20260417_departments.md`, `.ai/plans/20260321_pwa_ecommerce_plan.md`)
+1. **`.ai/context/HANDOFF.md`** — current work, blockers, atomic next steps  
+2. **`rules_context.mdc`** — product identity, stack, Docker, API security invariants  
+3. **Plans** — only when the task needs them (e.g. `.ai/plans/20260417_departments.md`, `.ai/plans/20260321_pwa_ecommerce_plan.md`)
 
-End of session: update **`HANDOFF.md`** (state, blockers, next steps). Keep the three context files aligned with reality.
+End of session: update **`.ai/context/HANDOFF.md`** (state, blockers, next steps). Keep **`rules_context.mdc`** aligned with reality when behavior or stack changes.
 
 ---
 
@@ -46,9 +57,9 @@ Code should stay **consistent, scalable, layered (UI → API → lib → DB), an
 - **Forms**: React Hook Form + Zod.  
 - **Client state**: Zustand (cart).  
 - **Mutations**: Route Handlers (`route.ts`), not Pages API.  
-- **DB**: Prisma; migrations via project process (**`schema_changes.sql` + `schema_population.sql`** with `DATABASE_URL_DIRECT` — see `CONTEXT_TECH.md`). Inventory and price audit rules in `CONTEXT.md` / schema.  
+- **DB**: Prisma; migrations via project process (**`schema_changes.sql` + `schema_population.sql`** with `DATABASE_URL_DIRECT` — see `rules_context.mdc`). Inventory and price audit rules in `rules_context.mdc` / schema.  
 - **i18n**: `next-intl` for the storefront; default locale `es`.  
-- **AI**: admin-only, human-in-the-loop, cached, rate-limited (see `CONTEXT_TECH.md`).
+- **AI**: admin-only, human-in-the-loop, cached, rate-limited (see `rules_context.mdc`).
 
 ---
 
@@ -68,7 +79,7 @@ If the user asked for a **plan or design only**, deliver that and wait before im
 
 ## Security (summary)
 
-Full API checklist: **`CONTEXT_TECH.md` → Agent security invariants.**  
+Full API checklist: **`rules_context.mdc` → Agent security invariants.**  
 Also: rate limits on public mutations; NextAuth for admin; webhook signature verification; use **Context7 MCP** when you need version-specific library docs.
 
 ---

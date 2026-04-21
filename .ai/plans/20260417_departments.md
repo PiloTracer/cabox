@@ -2,7 +2,7 @@
 
 > **Plan date**: 2026-04-17
 > **Status**: DRAFT (design & migration plan, no code yet)
-> **Related**: `.ai/plans/20260321_pwa_ecommerce_plan.md`, `.ai/context/CONTEXT.md`,
+> **Related**: `.ai/plans/20260321_pwa_ecommerce_plan.md`, `.cursor/rules/rules_context.mdc`,
 > `app/prisma/schema.prisma`
 
 ---

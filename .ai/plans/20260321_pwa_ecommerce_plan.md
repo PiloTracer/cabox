@@ -784,13 +784,14 @@ model PriceChangeLog {
 cabox/
 ├── .ai/
 │   ├── context/
-│   │   ├── CONTEXT.md                           # Primary project reference
-│   │   ├── CONTEXT_TECH.md                      # Technical stack details
-│   │   ├── HANDOFF.md                           # Session resumption handoff
-│   │   └── .cursorrules                         # Agent code rules
+│   │   └── HANDOFF.md                           # Session resumption handoff
 │   └── plans/
 │       └── 20260321_pwa_ecommerce_plan.md   # This file
-├── CONTEXT.md                               # Symlink or copy for root-level tools
+├── .cursor/
+│   └── rules/
+│       ├── rules.mdc                            # Agent contract
+│       └── rules_context.mdc                    # Product + stack + Docker + security
+├── .cursorrules                             # Points agents at .cursor/rules/
 ├── LICENSE
 ├── Dockerfile.dev                           # Dev: Node.js + hot-reload
 ├── docker-compose.dev.yml                   # Dev: app + postgres + redis

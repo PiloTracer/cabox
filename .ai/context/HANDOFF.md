@@ -24,8 +24,8 @@
 
 | Topic | File |
 |--------|------|
-| Docker, ports, `psql` one-liners, API security bullets | `.ai/context/CONTEXT_TECH.md` |
-| Product/stack/status table | `.ai/context/CONTEXT.md` |
+| Agent contract (safety, bootstrap) | `.cursor/rules/rules.mdc` |
+| Product, stack, Docker, API security invariants | `.cursor/rules/rules_context.mdc` |
 | Departments plan | `.ai/plans/20260417_departments.md` |
 | Schema SQL | `app/prisma/schema_changes.sql`, `app/prisma/schema_population.sql` |
 | Prod vs dev entrypoint | `Dockerfile.prd`, `app/docker-entrypoint.sh` |

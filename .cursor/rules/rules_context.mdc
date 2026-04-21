@@ -1,0 +1,313 @@
+---
+description: Cabox product identity, stack reference, Docker, and API security invariants
+alwaysApply: true
+---
+
+# Cabox — Project context & technical reference
+
+> **Last updated**: 2026-04-20
+
+## Product identity
+
+- **Project**: Cabox — Curated Fashion  
+- **Type**: Progressive Web App (PWA), Docker-centric  
+- **Storefront languages**: English & Spanish (default **es**); **admin**: English only  
+- **Domain**: Fashion / clothing / accessories eCommerce  
+- **Repository**: `PiloTracer/cabox` on GitHub  
+
+### Two interfaces
+
+| Interface | Audience | Language |
+|-----------|----------|----------|
+| **Public storefront** | Customers (B2C) | Bilingual (EN/ES) |
+| **Admin dashboard** | Store owner | English only |
+
+### Tech stack (summary)
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 15+ (App Router, RSC) |
+| UI | shadcn/ui + Tailwind CSS v4 + Radix UI |
+| i18n | `next-intl` (URL prefixes `/en`, `/es`) |
+| Database | PostgreSQL 16 (Docker) + Prisma ORM |
+| Auth | NextAuth.js v5 (admin-only, JWT) |
+| Storage | Supabase Storage |
+| Payments | Stripe, PayPal, SINPE, bank transfer, cash |
+| AI | Google Cloud Vision, Perplexity, Google CSE |
+| WhatsApp | Cloud API (outbound) + `wa.me` (inbound) |
+| Deploy | Docker (`.dev` / `.prd`) + PostgreSQL + Redis + Nginx |
+| State | Zustand (cart); React Hook Form + Zod |
+| Email | SendGrid + React Email |
+| Monitoring | Sentry (`@sentry/nextjs`) |
+| Rate limiting | `@upstash/ratelimit` via Redis |
+
+### Brand palette
+
+| Token | Value |
+|-------|-------|
+| Primary | `#8B5E3C` |
+| Accent | `#C75B7A` |
+| Background | `#FAF3EB` |
+| Text | `#3A2A1A` |
+| Display font | Playfair Display |
+| Body font | Inter |
+
+### Docker architecture (summary)
+
+- **Convention**: Docker and env files use **`.dev`** / **`.prd`** suffixes (no generic names).  
+- **Multi-store**: `spawn_store.sh` can spawn isolated stacks on the same server.  
+- **Each stack**: own PostgreSQL, Redis, Docker network, ports.  
+
+### Key documents
+
+| File | Purpose |
+|------|---------|
+| `.cursor/rules/rules.mdc` | Agent contract (safety, bootstrap, conventions) |
+| `.cursor/rules/rules_context.mdc` | This file — product + stack + Docker + security invariants |
+| `.ai/context/HANDOFF.md` | Session handoff and atomic next steps |
+| `.ai/plans/20260321_pwa_ecommerce_plan.md` | Implementation plan |
+| `.ai/plans/20260417_departments.md` | Departments plan |
+
+**Bootstrap order:** `.ai/context/HANDOFF.md` → this file → plans as needed.
+
+### Development status (snapshot)
+
+- **Phase**: Core integrations (ongoing); storefront enhancements shipped (cart, images, SEO, etc.).  
+- **Active thread**: **Departments** — app expects Prisma + SQL; DB must run **`app/prisma/schema_changes.sql`** then **`schema_population.sql`** (see **HANDOFF**).  
+- **Recently noted**: volume backup/restore in `bin/start.sh`.  
+
+### Feature status (high level)
+
+| Feature | Notes |
+|---------|--------|
+| WhatsApp notifications | Implemented (`lib/whatsapp.ts`, admin API) |
+| Stripe / PayPal | Checkout + webhooks |
+| Categories API | CRUD; admin UI verify as needed |
+| PWA | Partial — manifest present; SW config may need work |
+| Departments (catalog + routing) | Code in repo; **DB must match** via SQL scripts |
+| `.ai/plans/20260322_whatsapp_plan.md` | Empty — populate or remove |
+
+### Next steps (typical)
+
+1. **Departments DB / prod** — **`.ai/context/HANDOFF.md`**.  
+2. PWA service worker hardening.  
+3. Admin categories page verification.  
+4. Empty WhatsApp plan file — populate or remove.  
+5. Future: Stripe Connect, inventory variants UI.  
+
+---
+
+## Technology stack & development reference
+
+### Frontend technologies
+
+#### Core framework
+
+- **Next.js 15+**: App Router, RSC, ISR  
+- **React 19**  
+- **TypeScript 5.7+**  
+
+#### UI & styling
+
+- **shadcn/ui**, **Tailwind CSS v4**, **Radix UI**, **Lucide React**, **Embla Carousel**  
+
+#### State & forms
+
+- **Zustand 5** (cart, `localStorage`)  
+- **SWR**  
+- **React Hook Form 7 + Zod 3**  
+
+#### Data display (admin)
+
+- **@tanstack/react-table 8**, **Recharts 2**, **react-day-picker 9**, **cmdk 1**  
+
+#### Auth
+
+- **NextAuth.js v5**: admin-only, `CredentialsProvider`, JWT, roles `ADMIN` / `SUPER_ADMIN`, middleware on `/admin/**`  
+
+#### Internationalization
+
+- **next-intl 3.20+**: `/en/…`, `/es/…`; default `es`; admin outside `[locale]`  
+
+#### PWA
+
+- **@ducanh2912/next-pwa**, web app manifest  
+
+---
+
+### Backend technologies
+
+#### Database & ORM
+
+- **PostgreSQL 16** (Alpine, Docker)  
+- **Prisma 6** — type-safe client; catalog includes departments/categories and junction tables as in `schema.prisma`.  
+- **Schema apply (not `prisma/migrations/` only)**: `psql "$DATABASE_URL_DIRECT"` runs `app/prisma/schema_changes.sql` then `schema_population.sql` on prod (`Dockerfile.prd` entrypoint) and dev (`app/docker-entrypoint.sh`). Idempotent; use a **direct** Postgres URL (not PgBouncer transaction pool for DDL).  
+- **Studio**: `npx prisma studio` (e.g. port 5555)  
+- **Local one-shot**: `npm run db:apply-schema` when `DATABASE_URL_DIRECT` is set  
+
+#### API layer
+
+- **Next.js Route Handlers** (App Router)  
+- Public: `/api/products`, `/api/checkout`, `/api/cart/validate`, `/api/feeds/*`  
+- Admin: `/api/products`, `/api/orders`, `/api/ai/*`, `/api/whatsapp/*`, etc.  
+- Webhooks: Stripe, PayPal  
+
+#### Payments
+
+| Method | Integration | Automation |
+|--------|-------------|------------|
+| Card | Stripe Checkout / Elements | Webhook |
+| PayPal | PayPal JS SDK | Webhook |
+| SINPE / bank / cash | Manual | Admin confirms |
+
+#### AI & research
+
+| API | Purpose |
+|-----|---------|
+| Google Cloud Vision | Image labels / text / color |
+| Perplexity | Specs, copy, pricing research |
+| Google Custom Search | Promo images |
+
+#### Communication
+
+- **WhatsApp Business Cloud API**, **wa.me**, **SendGrid**, **@react-email/components**  
+
+#### File storage
+
+- **Supabase Storage** — product images, references, invoice PDFs (see app conventions for paths).  
+
+#### PDF
+
+- **@react-pdf/renderer 4** — invoices  
+
+---
+
+### Production infrastructure
+
+#### Rate limiting
+
+- **@upstash/ratelimit** + Redis — per-endpoint limits (checkout, coupons, AI, etc.).  
+
+#### Errors
+
+- **@sentry/nextjs** — client + server; source maps at build.  
+
+#### Caching (typical)
+
+| Page type | Strategy |
+|-----------|----------|
+| Product / category | ISR with short revalidation |
+| Cart / checkout | Dynamic |
+| Feeds | ISR |
+| Admin | Dynamic |
+
+#### Security headers
+
+- CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy — **`next.config.mjs`**  
+
+---
+
+## Agent security invariants (implementing APIs)
+
+Use on every mutation / admin route; expand when touching payments, uploads, or webhooks.
+
+- **Auth**: Admin routes use `requireAdmin()` from `lib/auth-guard.ts`; identity from session only, never from the client body.  
+- **Input**: Validate body, query, and path params with **Zod** before Prisma; trim strings and cap length; never pass raw `req.body` to Prisma.  
+- **DB**: Prisma only; raw SQL only with safe tagged templates, never string-concatenated user input.  
+- **Rate limits**: Public mutations and AI routes use `@upstash/ratelimit` as configured.  
+- **Secrets**: Only in `.env.dev` / `.env.prd`; never log secrets; `NEXT_PUBLIC_*` only for intentionally public values.  
+- **Errors**: Generic messages to clients in production; details server-side (e.g. Sentry).  
+- **XSS**: No unsanitized `dangerouslySetInnerHTML`; no user content in inline scripts.  
+- **Webhooks**: Verify Stripe / PayPal / WhatsApp signatures; fast response; idempotent handling.  
+- **Uploads**: Validate type/size server-side; safe paths; private buckets + signed URLs where appropriate.  
+
+### Social commerce
+
+- **Meta Pixel** (client), **CAPI** (server), XML feeds `/api/feeds/meta`, `/api/feeds/google`  
+
+---
+
+## Docker & infrastructure
+
+### Environment convention
+
+| Dev | Production |
+|-----|------------|
+| `Dockerfile.dev` | `Dockerfile.prd` |
+| `docker-compose.dev.yml` | `docker-compose.prd.yml` |
+| `.env.dev` | `.env.prd` |
+| `nginx/default.dev.conf` | `nginx/default.prd.conf` |
+
+### Container services (dev, typical)
+
+| Service | Notes | Default port |
+|---------|--------|--------------|
+| `app` | `Dockerfile.dev` | `3000` |
+| `db` | `postgres:16-alpine` | `5432` |
+| `redis` | `redis:7-alpine` | `6379` |
+
+### Multi-store spawning
+
+```bash
+./spawn_store.sh cabox 3000 5432 6379
+./spawn_store.sh boutique 3100 5433 6380
+```
+
+Each store: isolated `COMPOSE_PROJECT_NAME`, network, DB volume, ports.
+
+### Database operations
+
+```bash
+# SQL schema (same as container startup)
+docker compose -f docker-compose.dev.yml exec app sh -c 'psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f ./prisma/schema_changes.sql && psql "$DATABASE_URL_DIRECT" -v ON_ERROR_STOP=1 -f ./prisma/schema_population.sql'
+
+# Seed
+docker compose -f docker-compose.dev.yml exec app npx prisma db seed
+
+# Studio
+docker compose -f docker-compose.dev.yml exec app npx prisma studio
+
+# Backup
+docker compose -f docker-compose.dev.yml exec db pg_dump -U cabox cabox_db > backup.sql
+```
+
+### Tests
+
+```bash
+docker compose -f docker-compose.dev.yml exec app npm run test
+docker compose -f docker-compose.dev.yml exec app npm run test:e2e
+```
+
+---
+
+## Project structure (key paths)
+
+```
+cabox/
+├── .cursor/rules/           # rules.mdc, rules_context.mdc
+├── .ai/plans/
+├── Dockerfile.dev
+├── docker-compose.dev.yml
+├── .env.dev
+├── app/
+│   ├── prisma/schema.prisma
+│   ├── prisma/schema_changes.sql, schema_population.sql
+│   ├── docker-entrypoint.sh
+│   ├── next.config.mjs
+│   └── src/
+│       ├── app/[locale]/
+│       ├── app/admin/
+│       ├── app/api/
+│       ├── components/
+│       ├── lib/
+│       ├── stores/
+│       └── messages/
+├── nginx/
+└── bin/start.sh
+```
+
+---
+
+## Environment variables (categories)
+
+Defined in `.env.dev` / `.env.prd` (see plans for full templates): database URLs (**including `DATABASE_URL_DIRECT` for schema scripts**), NextAuth, Stripe, PayPal, Google APIs, Perplexity, WhatsApp, Supabase, Meta, Sentry, SendGrid, Redis (`UPSTASH_*`), `NEXT_PUBLIC_*` app URL/locale/currency, etc.
